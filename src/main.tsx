@@ -6,6 +6,7 @@ import {
   Pencil, Trash2, Truck, Users, Warehouse, Wrench, X, Copy, Film, FolderOpen, Image, Settings, ArrowLeft, Play, Home, Link2, Upload, Download, BookOpen, CalendarDays
 } from 'lucide-react'
 import './styles.css'
+import { configured as supabaseConfigured, getSession, getShowId, getShowName, loadBudgetDocument, loadSharedLocations, saveBudgetDocument, subscribeBudget } from './supabase'
 
 function TaylorScoutLogo({compact=false}:{compact?:boolean}) { return <span className={`ts-logo ${compact?'compact':''}`} aria-label="Taylor Scout"><svg viewBox="0 0 74 92" role="img" aria-hidden="true"><path className="pin-outline" d="M37 3C18 3 5 17 5 36c0 22 17 40 32 53 15-13 32-31 32-53C69 17 56 3 37 3Z"/><path className="mountain" d="M16 39l15-13 8 7 10-10 12 14-12-8-10 10-8-7-15 7Z"/><path className="road" d="M19 69c12-14 24-18 31-27-3 14-12 22-20 31l7 8-9 2-9-14Z"/><path className="star" d="M21 17l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z"/></svg><span className="ts-wordmark"><b>TAYLOR SCOUT</b><small>PRODUCTION TOOLS</small></span></span> }
 
@@ -291,13 +292,15 @@ const iconMap: Record<string, React.ReactNode> = {
 }
 
 function App() {
+  const hubShowId = useMemo(() => getShowId(), [])
+  const hubShowName = useMemo(() => getShowName(), [])
   const [shows, setShows] = useState<ShowProfile[]>(() => {
     const saved = localStorage.getItem('tb-shows')
     if (saved) return JSON.parse(saved)
-    return [{id:'el-dorado-s3',name:'EL DORADO',productionCompany:'',season:'Season 3',episodes:['Episode 303','Episode 304','Episode 305','Episode 306','Episode 307','Episode 308'],defaultContingency:10000,defaultCityId:'la-city',createdAt:new Date().toISOString()}]
+    return [{id:hubShowId || 'el-dorado-s3',name:hubShowName || 'EL DORADO',productionCompany:'',season:'Season 3',episodes:['Episode 303','Episode 304','Episode 305','Episode 306','Episode 307','Episode 308'],defaultContingency:10000,defaultCityId:'la-city',createdAt:new Date().toISOString()}]
   })
-  const [activeShowId, setActiveShowId] = useState(() => localStorage.getItem('tb-active-show') || '')
-  const [appView, setAppView] = useState<'home'|'setup'|'budget'>(() => localStorage.getItem('tb-active-show') ? 'budget' : 'home')
+  const [activeShowId, setActiveShowId] = useState(() => hubShowId || localStorage.getItem('tb-active-show') || '')
+  const [appView, setAppView] = useState<'home'|'setup'|'budget'>(() => (hubShowId || localStorage.getItem('tb-active-show')) ? 'budget' : 'home')
   const [editingShow, setEditingShow] = useState<ShowProfile | null>(null)
   const [cities, setCities] = useState<CityProfile[]>(() => {
     const saved = localStorage.getItem('tb-cities') || localStorage.getItem('lbs-cities')
@@ -312,7 +315,7 @@ function App() {
     if (saved) return JSON.parse(saved).map((b:BudgetPage) => ({...b, showId:b.showId || 'legacy-show', items:b.items || [], customSections:b.customSections || [], sectionOverrides:b.sectionOverrides || {}}))
     const legacyItems = localStorage.getItem('lbs-items')
     return [{
-      id: crypto.randomUUID(), showId: 'el-dorado-s3', episode: 'Episode 303', production: 'EL DORADO',
+      id: crypto.randomUUID(), showId: hubShowId || 'el-dorado-s3', episode: 'Episode 303', production: 'EL DORADO',
       setName: 'Ext. Salt Lake City - Outskirts / Ext. Pine Tree Forest', setNumber: '4.14, 4.15, 4.16', location: 'Darling Ranch',
       version: 'Budget V1', cityId: 'la-city', contingency: 10000, keyAssistantLocationManager:'Taylor Erickson', address:'1773 Darling Ave, Frazier Park, CA 93225', prepStart:'2026-07-30', prepEnd:'2026-07-31', shootStart:'2026-08-03', shootEnd:'2026-08-03', holdStart:'2026-08-01', holdEnd:'2026-08-02', strikeStart:'2026-08-04', strikeEnd:'2026-08-04', sharedLocationId:'darling-ranch',
       items: legacyItems ? JSON.parse(legacyItems) : initialItems,
@@ -325,12 +328,49 @@ function App() {
   const [activeSection, setActiveSection] = useState('staffing')
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
   const [saveState, setSaveState] = useState<'saved'|'saving'>('saved')
+  const [syncState, setSyncState] = useState<'local'|'connecting'|'connected'|'error'>('connecting')
+  const [syncMessage, setSyncMessage] = useState('Connecting…')
+  const [remoteReady, setRemoteReady] = useState(false)
   const [printBudgetIds, setPrintBudgetIds] = useState<string[]>([])
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const [printOrientation, setPrintOrientation] = useState<'portrait'|'landscape'>(() => (localStorage.getItem('tb-print-orientation') as 'portrait'|'landscape') || 'landscape')
   const [printMenuOpen, setPrintMenuOpen] = useState(false)
 
   useEffect(() => { setSaveState('saving'); const t=setTimeout(()=>{ localStorage.setItem('tb-budgets', JSON.stringify(budgets)); setSaveState('saved') },250); return ()=>clearTimeout(t) }, [budgets])
+
+  useEffect(() => {
+    if (!hubShowId || !supabaseConfigured) { setSyncState('local'); setSyncMessage('Local mode'); setRemoteReady(true); return }
+    let cancelled=false
+    const hydrate = async () => {
+      try {
+        setSyncState('connecting'); setSyncMessage('Connecting…')
+        const session=await getSession(); if(!session) throw new Error('Not signed in')
+        const [doc,locations]=await Promise.all([loadBudgetDocument(hubShowId),loadSharedLocations(hubShowId)])
+        if(cancelled)return
+        const sharedShow:ShowProfile={id:hubShowId,name:hubShowName||'EL DORADO',productionCompany:'',season:'',episodes:Array.from(new Set(locations.map((r:any)=>r.episode_name||r.episode_id).filter(Boolean))),defaultContingency:10000,defaultCityId:'la-city',createdAt:new Date().toISOString()}
+        setShows(prev=>prev.some(s=>s.id===hubShowId)?prev.map(s=>s.id===hubShowId?{...s,...sharedShow,episodes:sharedShow.episodes.length?sharedShow.episodes:s.episodes}:s):[...prev,sharedShow])
+        setActiveShowId(hubShowId); setAppView('budget')
+        let remoteBudgets:BudgetPage[] = Array.isArray(doc?.payload?.budgets) ? doc.payload.budgets : []
+        const calendarDrafts:BudgetPage[] = locations.filter((r:any)=>r.source==='calendar').map((r:any)=>({
+          id:`calendar-${r.id}`,showId:hubShowId,episode:r.episode_name||r.episode_id||'Episode',production:hubShowName||'EL DORADO',setName:r.set_name||'New Set',setNumber:r.metadata?.scenes||'',scenes:r.metadata?.scenes||'',location:r.location_name||'',version:'Budget V1',cityId:'la-city',contingency:10000,keyAssistantLocationManager:Array.isArray(r.metadata?.key_ids)?r.metadata.key_ids.join(', '):'',address:r.address||'',contact:r.contact_name||'',phone:r.contact_phone||'',sharedLocationId:r.id,calendarAssignmentIds:[r.metadata?.calendar_event_id].filter(Boolean),prepStart:r.metadata?.schedule?.prep_start||'',prepEnd:r.metadata?.schedule?.prep_end||'',shootStart:r.metadata?.schedule?.shoot_start||'',shootEnd:r.metadata?.schedule?.shoot_end||'',holdStart:r.metadata?.schedule?.hold_start||'',holdEnd:r.metadata?.schedule?.hold_end||'',strikeStart:r.metadata?.schedule?.strike_start||'',strikeEnd:r.metadata?.schedule?.strike_end||'',items:templateItems(),customSections:[],sectionOverrides:{}
+        }))
+        if(remoteBudgets.length){ setBudgets(remoteBudgets.map(b=>({...b,showId:hubShowId,items:withRequiredTemplate(b.items||[])}))) }
+        else if(calendarDrafts.length){ setBudgets(prev=>{const other=prev.filter(b=>b.showId!==hubShowId); return [...other,...calendarDrafts]}) }
+        if(doc?.payload?.cities) setCities(doc.payload.cities)
+        if(doc?.payload?.vendors) setVendors(doc.payload.vendors)
+        setSyncState('connected'); setSyncMessage('Connected'); setRemoteReady(true)
+      } catch(e:any) { if(!cancelled){setSyncState('error');setSyncMessage(e?.message||'Sync error');setRemoteReady(true)} }
+    }
+    hydrate()
+    const unsub=subscribeBudget(hubShowId,()=>hydrate())
+    return()=>{cancelled=true;unsub()}
+  },[hubShowId,hubShowName])
+
+  useEffect(() => {
+    if(!hubShowId || !supabaseConfigured || !remoteReady || syncState==='error') return
+    const t=setTimeout(async()=>{try{setSaveState('saving');await saveBudgetDocument(hubShowId,{version:1,budgets:budgets.filter(b=>b.showId===hubShowId),cities,vendors});setSaveState('saved');setSyncState('connected');setSyncMessage('Connected · saved')}catch(e:any){setSyncState('error');setSyncMessage(e?.message||'Sync error')}},700)
+    return()=>clearTimeout(t)
+  },[budgets,cities,vendors,hubShowId,remoteReady])
   useEffect(() => localStorage.setItem('tb-cities', JSON.stringify(cities)), [cities])
   useEffect(() => localStorage.setItem('tb-vendors', JSON.stringify(vendors)), [vendors])
   useEffect(() => {
@@ -373,7 +413,7 @@ function App() {
   const updateBudget = (patch: Partial<BudgetPage>) => setBudgets(prev => prev.map(b => b.id === budget.id ? {...b, ...patch} : b))
   const updateSection = (sectionId:string, patch:{name?:string;account?:string}) => updateBudget({sectionOverrides:{...(budget.sectionOverrides||{}),[sectionId]:{...(budget.sectionOverrides?.[sectionId]||{}),...patch}}})
   const updateItem = (id:string, patch:Partial<BudgetItem>) => updateBudget({items:applyLocationFeeDefaults(items,id,patch)})
-  const saveNow = () => { localStorage.setItem('tb-budgets', JSON.stringify(budgets)); localStorage.setItem('tb-cities', JSON.stringify(cities)); localStorage.setItem('tb-vendors', JSON.stringify(vendors)); setSaveState('saved') }
+  const saveNow = async () => { localStorage.setItem('tb-budgets', JSON.stringify(budgets)); localStorage.setItem('tb-cities', JSON.stringify(cities)); localStorage.setItem('tb-vendors', JSON.stringify(vendors)); if(hubShowId&&supabaseConfigured){try{setSaveState('saving');await saveBudgetDocument(hubShowId,{version:1,budgets:budgets.filter(b=>b.showId===hubShowId),cities,vendors});setSyncState('connected');setSyncMessage('Connected · saved')}catch(e:any){setSyncState('error');setSyncMessage(e?.message||'Sync error')}} setSaveState('saved') }
   const printBudget = () => { setPrintBudgetIds([budget.id]); saveNow(); window.setTimeout(() => window.print(), 80) }
   const printSelectedBudgets = (ids:string[]) => { setPrintBudgetIds(ids); saveNow(); setActiveModal(null); window.setTimeout(() => window.print(), 120) }
   const saveItem = (item: BudgetItem) => {
@@ -417,13 +457,13 @@ function App() {
           <button className="nav-item" onClick={() => setActiveModal('city')}><ClipboardList size={18}/> City Rate Library</button>
           <button className="nav-item" onClick={() => setActiveModal('vendor')}><Warehouse size={18}/> Vendor Library</button><button className="nav-item" onClick={() => setActiveModal('connections')}><Link2 size={18}/> Calendar / Bible Connections</button>
         </nav>
-        <div className="sidebar-footer">Autosaved locally</div>
+        <div className="sidebar-footer">{syncMessage}</div>
       </aside>
 
       <main className="main-content">
         <header className="topbar no-print budget-topbar">
           <div className="budget-title"><span className="eyebrow">{budget.episode} · LOCATIONS DEPARTMENT</span><h1>{budget.setName}</h1><p>{budget.location}</p></div>
-          <div className="top-actions">
+          <div className="top-actions"><span className={`sync-badge ${syncState}`}>{syncMessage}</span>
             <button className="secondary" onClick={()=>window.location.href='https://www.taylorscout.com'}><Home size={17}/> Home</button><button className={`save-budget-btn ${saveState}`} onClick={saveNow}>{saveState==='saving'?'Saving…':'Save Budget'}</button>
             <button className="secondary" onClick={() => setActiveModal('copyBudget')}><Copy size={17}/> Duplicate Budget</button>
             <div className="print-dropdown"><button className="secondary print-trigger" onClick={()=>setPrintMenuOpen(!printMenuOpen)}><Printer size={16}/> Print <ChevronDown size={15}/></button>{printMenuOpen&&<div className="print-menu"><button onClick={()=>{setPrintOrientation('landscape');setPrintMenuOpen(false);window.setTimeout(printBudget,80)}}><FileText size={16}/><span><b>Landscape</b><small>Print this budget landscape</small></span></button><button onClick={()=>{setPrintMenuOpen(false);printBudget()}}><Printer size={16}/><span><b>Set</b><small>Print the current set budget</small></span></button><button onClick={()=>{setPrintMenuOpen(false);setActiveModal('printSelection')}}><Copy size={16}/><span><b>Episode / Sets</b><small>Choose multiple set budgets</small></span></button></div>}</div>

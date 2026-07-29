@@ -1,29 +1,9 @@
-# Taylor Budget v16
+# Taylor Scout Budget v20 — Shared Connected
 
-Fresh deployable Budget app for the Taylor Scout suite.
+This build uses the shared `.taylorscout.com` Supabase session, opens the show selected in the Hub, reads Calendar-published locations from `production_locations`, creates linked budget drafts, and saves Budget state to `tool_documents` using `tool_key = budget`.
 
-## Included
-- Show / episode / set budgets
-- Calendar JSON import for shared episode, set, scene, location, dates and assigned key
-- Bible package export containing locked approved budget, vendor commitments and PO numbers
-- Imported El Dorado Season 3 vendor-rate library
-- Location fees, staffing, security, police/fire, permits, parking, vendors, restoration and custom sections
-- Autosave, duplicate budgets/items, multi-set printing, city-rate library and vendor library
-- Home, Calendar and Bible navigation
+Required Vercel variables:
+- VITE_SUPABASE_URL
+- VITE_SUPABASE_ANON_KEY
 
-## Run
-```bash
-npm install
-npm run dev
-```
-
-## Deploy
-Upload all files except `node_modules` and `dist` to GitHub, then deploy with Vercel.
-
-
-## Update 18.0.0
-- Unified Taylor Scout logo and dashboard navigation.
-- Interface and print refinements requested July 29, 2026.
-
-
-Build: v19
+Open from the Hub with `?show=<show uuid>&showName=<name>`.
