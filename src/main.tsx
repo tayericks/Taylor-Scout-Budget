@@ -449,6 +449,11 @@ function App() {
 
   return (
     <div className="app-shell">
+      <header className="suite-global-bar no-print">
+        <button className="suite-global-brand" onClick={()=>window.location.href='https://www.taylorscout.com'}><span className="suite-logo-tile"><TaylorScoutLogo compact/></span><span><b>TAYLOR SCOUT</b><small>PRODUCTION TOOLS</small></span></button>
+        <strong>{activeShow.name}</strong>
+        <span className={`suite-global-sync ${syncState}`}>{syncMessage}</span>
+      </header>
       <aside className="sidebar no-print">
         <button className="brand scout-brand brand-home" onClick={()=>window.location.href='https://www.taylorscout.com'}><TaylorScoutLogo/><span className="tool-label">BUDGET · {activeShow.name}</span></button>
         <button className="show-switcher" onClick={()=>window.location.href='https://www.taylorscout.com'}><Home size={15}/> Show Dashboard</button><button className="show-switcher" onClick={()=>setAppView('home')}><ArrowLeft size={15}/> All Budgets</button>
