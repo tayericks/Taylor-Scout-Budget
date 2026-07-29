@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  Building2, ChevronDown, ChevronRight, ClipboardList, DollarSign,
+  Building2, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ClipboardList, DollarSign,
   FileText, Flame, MapPin, Plus, Printer, Shield, Sparkles,
   Pencil, Trash2, Truck, Users, Warehouse, Wrench, X, Copy, Film, FolderOpen, Image, Settings, ArrowLeft, Play, Home, Link2, Upload, Download, BookOpen, CalendarDays
 } from 'lucide-react'
 import './styles.css'
+
+function TaylorScoutLogo({compact=false}:{compact?:boolean}) { return <span className={`ts-logo ${compact?'compact':''}`} aria-label="Taylor Scout"><svg viewBox="0 0 74 92" role="img" aria-hidden="true"><path className="pin-outline" d="M37 3C18 3 5 17 5 36c0 22 17 40 32 53 15-13 32-31 32-53C69 17 56 3 37 3Z"/><path className="mountain" d="M16 39l15-13 8 7 10-10 12 14-12-8-10 10-8-7-15 7Z"/><path className="road" d="M19 69c12-14 24-18 31-27-3 14-12 22-20 31l7 8-9 2-9-14Z"/><path className="star" d="M21 17l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z"/></svg><span className="ts-wordmark"><b>TAYLOR SCOUT</b><small>PRODUCTION TOOLS</small></span></span> }
 
 type CalcType = 'flat' | 'rateDay' | 'hourly' | 'dayRate' | 'vendor'
 
@@ -324,6 +326,7 @@ function App() {
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
   const [saveState, setSaveState] = useState<'saved'|'saving'>('saved')
   const [printBudgetIds, setPrintBudgetIds] = useState<string[]>([])
+  const [detailsExpanded, setDetailsExpanded] = useState(false)
   const [printOrientation, setPrintOrientation] = useState<'portrait'|'landscape'>(() => (localStorage.getItem('tb-print-orientation') as 'portrait'|'landscape') || 'landscape')
 
   useEffect(() => { setSaveState('saving'); const t=setTimeout(()=>{ localStorage.setItem('tb-budgets', JSON.stringify(budgets)); setSaveState('saved') },250); return ()=>clearTimeout(t) }, [budgets])
@@ -395,8 +398,8 @@ function App() {
   return (
     <div className="app-shell">
       <aside className="sidebar no-print">
-        <div className="brand scout-brand"><div className="brand-mark scout-pin"><MapPin size={23}/></div><div><strong>TAYLOR SCOUT</strong><small>PRODUCTION TOOLS</small><span>BUDGET · {activeShow.name}</span></div></div>
-        <button className="show-switcher" onClick={()=>window.location.href='https://taylorscout.com'}><Home size={15}/> Show Dashboard</button><button className="show-switcher" onClick={()=>setAppView('home')}><ArrowLeft size={15}/> All Budgets</button>
+        <button className="brand scout-brand brand-home" onClick={()=>window.location.href='https://www.taylorscout.com'}><TaylorScoutLogo/><span className="tool-label">BUDGET · {activeShow.name}</span></button>
+        <button className="show-switcher" onClick={()=>window.location.href='https://www.taylorscout.com'}><Home size={15}/> Show Dashboard</button><button className="show-switcher" onClick={()=>setAppView('home')}><ArrowLeft size={15}/> All Budgets</button>
         <button className="show-switcher" onClick={()=>{setEditingShow(activeShow);setAppView('setup')}}><Settings size={15}/> Show Settings</button>
         <button className="new-budget-btn" onClick={() => setActiveModal('newBudget')}><Plus size={17}/> New Budget</button>
         <div className="episode-nav-title"><Film size={15}/> Episodes</div>
@@ -420,16 +423,16 @@ function App() {
         <header className="topbar no-print budget-topbar">
           <div className="budget-title"><span className="eyebrow">{budget.episode} · LOCATIONS DEPARTMENT</span><h1>{budget.setName}</h1><p>{budget.location}</p></div>
           <div className="top-actions">
-            <button className="secondary" onClick={()=>window.location.href='https://taylorscout.com'}><Home size={17}/> Home</button><button className={`save-budget-btn ${saveState}`} onClick={saveNow}>{saveState==='saving'?'Saving…':'Save Budget'}</button>
+            <button className="secondary" onClick={()=>window.location.href='https://www.taylorscout.com'}><Home size={17}/> Home</button><button className={`save-budget-btn ${saveState}`} onClick={saveNow}>{saveState==='saving'?'Saving…':'Save Budget'}</button>
             <button className="secondary" onClick={() => setActiveModal('copyBudget')}><Copy size={17}/> Duplicate Budget</button>
-            <label className="print-orientation"><span>Print</span><select value={printOrientation} onChange={e=>setPrintOrientation(e.target.value as 'portrait'|'landscape')}><option value="landscape">Landscape</option><option value="portrait">Portrait</option></select></label>
-            <button className="secondary" onClick={printBudget}><Printer size={17}/> Print Set</button><button className="secondary" onClick={() => setActiveModal('printSelection')}><FileText size={17}/> Print Episode / Sets</button>
+            <div className="print-combo"><select aria-label="Print orientation" value={printOrientation} onChange={e=>setPrintOrientation(e.target.value as 'portrait'|'landscape')}><option value="landscape">Landscape</option><option value="portrait">Portrait</option></select><button onClick={printBudget}><Printer size={16}/> Set</button><button onClick={() => setActiveModal('printSelection')}><FileText size={16}/> Episode / Sets</button></div>
+            <button className="secondary" onClick={()=>setOpenSections(openSections.length===sections.length?[]:sections.map(s=>s.id))}>{openSections.length===sections.length?<><ChevronsUp size={17}/> Collapse All</>:<><ChevronsDown size={17}/> Expand All</>}</button>
             <button className="secondary" onClick={() => setActiveModal('connections')}><Link2 size={17}/> Connections</button><button className="primary" onClick={() => startAddItem('unexpected')}><Plus size={17}/> Add Cost</button>
           </div>
         </header>
 
-        <section className="project-card">
-          <div className="project-fields expanded">
+        <section className={`project-card ${detailsExpanded?'details-open':'details-collapsed'}`}><button className="project-summary-toggle no-print" onClick={()=>setDetailsExpanded(!detailsExpanded)}><span><b>{budget.production}</b> · {budget.episode} · {budget.location||'No location'}</span><small>{detailsExpanded?'Hide location details':'Show location details'}</small></button>
+          <div className={`project-fields ${detailsExpanded?'expanded':'collapsed'}`}>
             <label>Production<input value={budget.production} onChange={e => updateBudget({production:e.target.value})}/></label>
             <label>Episode<input value={budget.episode} onChange={e => updateBudget({episode:e.target.value})}/></label>
             <label>Set name<input value={budget.setName} onChange={e => updateBudget({setName:e.target.value})}/></label>

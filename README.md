@@ -19,3 +19,8 @@ npm run dev
 
 ## Deploy
 Upload all files except `node_modules` and `dist` to GitHub, then deploy with Vercel.
+
+
+## Update 18.0.0
+- Unified Taylor Scout logo and dashboard navigation.
+- Interface and print refinements requested July 29, 2026.
