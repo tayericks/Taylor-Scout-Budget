@@ -395,7 +395,7 @@ function App() {
   return (
     <div className="app-shell">
       <aside className="sidebar no-print">
-        <div className="brand"><div className="brand-mark">{activeShow.logo ? <img src={activeShow.logo} alt=""/> : 'TB'}</div><div><strong>Taylor Budget</strong><span>{activeShow.name}</span></div></div>
+        <div className="brand scout-brand"><div className="brand-mark scout-pin"><MapPin size={23}/></div><div><strong>TAYLOR SCOUT</strong><small>PRODUCTION TOOLS</small><span>BUDGET · {activeShow.name}</span></div></div>
         <button className="show-switcher" onClick={()=>window.location.href='https://taylorscout.com'}><Home size={15}/> Show Dashboard</button><button className="show-switcher" onClick={()=>setAppView('home')}><ArrowLeft size={15}/> All Budgets</button>
         <button className="show-switcher" onClick={()=>{setEditingShow(activeShow);setAppView('setup')}}><Settings size={15}/> Show Settings</button>
         <button className="new-budget-btn" onClick={() => setActiveModal('newBudget')}><Plus size={17}/> New Budget</button>
@@ -417,14 +417,14 @@ function App() {
       </aside>
 
       <main className="main-content">
-        <header className="topbar no-print">
-          <div><span className="eyebrow">{budget.episode} · LOCATIONS DEPARTMENT</span><h1>{budget.setName}</h1><p>{budget.location}</p></div>
+        <header className="topbar no-print budget-topbar">
+          <div className="budget-title"><span className="eyebrow">{budget.episode} · LOCATIONS DEPARTMENT</span><h1>{budget.setName}</h1><p>{budget.location}</p></div>
           <div className="top-actions">
             <button className="secondary" onClick={()=>window.location.href='https://taylorscout.com'}><Home size={17}/> Home</button><button className={`save-budget-btn ${saveState}`} onClick={saveNow}>{saveState==='saving'?'Saving…':'Save Budget'}</button>
             <button className="secondary" onClick={() => setActiveModal('copyBudget')}><Copy size={17}/> Duplicate Budget</button>
             <label className="print-orientation"><span>Print</span><select value={printOrientation} onChange={e=>setPrintOrientation(e.target.value as 'portrait'|'landscape')}><option value="landscape">Landscape</option><option value="portrait">Portrait</option></select></label>
             <button className="secondary" onClick={printBudget}><Printer size={17}/> Print Set</button><button className="secondary" onClick={() => setActiveModal('printSelection')}><FileText size={17}/> Print Episode / Sets</button>
-            <button className="secondary" onClick={() => setActiveModal('connections')}><Link2 size={17}/> Connect</button><button className="primary" onClick={() => startAddItem('unexpected')}><Plus size={17}/> Add Cost</button>
+            <button className="secondary" onClick={() => setActiveModal('connections')}><Link2 size={17}/> Connections</button><button className="primary" onClick={() => startAddItem('unexpected')}><Plus size={17}/> Add Cost</button>
           </div>
         </header>
 
