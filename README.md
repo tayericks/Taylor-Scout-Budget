@@ -24,3 +24,6 @@ Upload all files except `node_modules` and `dist` to GitHub, then deploy with Ve
 ## Update 18.0.0
 - Unified Taylor Scout logo and dashboard navigation.
 - Interface and print refinements requested July 29, 2026.
+
+
+Build: v19

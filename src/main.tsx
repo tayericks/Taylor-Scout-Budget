@@ -328,6 +328,7 @@ function App() {
   const [printBudgetIds, setPrintBudgetIds] = useState<string[]>([])
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const [printOrientation, setPrintOrientation] = useState<'portrait'|'landscape'>(() => (localStorage.getItem('tb-print-orientation') as 'portrait'|'landscape') || 'landscape')
+  const [printMenuOpen, setPrintMenuOpen] = useState(false)
 
   useEffect(() => { setSaveState('saving'); const t=setTimeout(()=>{ localStorage.setItem('tb-budgets', JSON.stringify(budgets)); setSaveState('saved') },250); return ()=>clearTimeout(t) }, [budgets])
   useEffect(() => localStorage.setItem('tb-cities', JSON.stringify(cities)), [cities])
@@ -425,7 +426,7 @@ function App() {
           <div className="top-actions">
             <button className="secondary" onClick={()=>window.location.href='https://www.taylorscout.com'}><Home size={17}/> Home</button><button className={`save-budget-btn ${saveState}`} onClick={saveNow}>{saveState==='saving'?'Saving…':'Save Budget'}</button>
             <button className="secondary" onClick={() => setActiveModal('copyBudget')}><Copy size={17}/> Duplicate Budget</button>
-            <div className="print-combo"><select aria-label="Print orientation" value={printOrientation} onChange={e=>setPrintOrientation(e.target.value as 'portrait'|'landscape')}><option value="landscape">Landscape</option><option value="portrait">Portrait</option></select><button onClick={printBudget}><Printer size={16}/> Set</button><button onClick={() => setActiveModal('printSelection')}><FileText size={16}/> Episode / Sets</button></div>
+            <div className="print-dropdown"><button className="secondary print-trigger" onClick={()=>setPrintMenuOpen(!printMenuOpen)}><Printer size={16}/> Print <ChevronDown size={15}/></button>{printMenuOpen&&<div className="print-menu"><button onClick={()=>{setPrintOrientation('landscape');setPrintMenuOpen(false);window.setTimeout(printBudget,80)}}><FileText size={16}/><span><b>Landscape</b><small>Print this budget landscape</small></span></button><button onClick={()=>{setPrintMenuOpen(false);printBudget()}}><Printer size={16}/><span><b>Set</b><small>Print the current set budget</small></span></button><button onClick={()=>{setPrintMenuOpen(false);setActiveModal('printSelection')}}><Copy size={16}/><span><b>Episode / Sets</b><small>Choose multiple set budgets</small></span></button></div>}</div>
             <button className="secondary" onClick={()=>setOpenSections(openSections.length===sections.length?[]:sections.map(s=>s.id))}>{openSections.length===sections.length?<><ChevronsUp size={17}/> Collapse All</>:<><ChevronsDown size={17}/> Expand All</>}</button>
             <button className="secondary" onClick={() => setActiveModal('connections')}><Link2 size={17}/> Connections</button><button className="primary" onClick={() => startAddItem('unexpected')}><Plus size={17}/> Add Cost</button>
           </div>
