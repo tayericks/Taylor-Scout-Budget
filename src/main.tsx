@@ -299,8 +299,8 @@ function App() {
     if (saved) return JSON.parse(saved)
     return [{id:hubShowId || 'el-dorado-s3',name:hubShowName || 'EL DORADO',productionCompany:'',season:'Season 3',episodes:['Episode 303','Episode 304','Episode 305','Episode 306','Episode 307','Episode 308'],defaultContingency:10000,defaultCityId:'la-city',createdAt:new Date().toISOString()}]
   })
-  const [activeShowId, setActiveShowId] = useState(() => hubShowId || localStorage.getItem('tb-active-show') || '')
-  const [appView, setAppView] = useState<'home'|'setup'|'budget'>(() => (hubShowId || localStorage.getItem('tb-active-show')) ? 'budget' : 'home')
+  const [activeShowId, setActiveShowId] = useState(() => hubShowId || localStorage.getItem('tb-active-show') || shows[0]?.id || '')
+  const [appView, setAppView] = useState<'home'|'setup'|'budget'>(() => (hubShowId || localStorage.getItem('tb-active-show') || shows.length === 1) ? 'budget' : 'home')
   const [editingShow, setEditingShow] = useState<ShowProfile | null>(null)
   const [cities, setCities] = useState<CityProfile[]>(() => {
     const saved = localStorage.getItem('tb-cities') || localStorage.getItem('lbs-cities')
@@ -337,6 +337,17 @@ function App() {
   const [printMenuOpen, setPrintMenuOpen] = useState(false)
 
   useEffect(() => { setSaveState('saving'); const t=setTimeout(()=>{ localStorage.setItem('tb-budgets', JSON.stringify(budgets)); setSaveState('saved') },250); return ()=>clearTimeout(t) }, [budgets])
+
+  useEffect(() => {
+    if (appView === 'home' && shows.length === 1) {
+      const onlyShow = shows[0]
+      setActiveShowId(onlyShow.id)
+      const first = budgets.find(b => (b.showId || 'legacy-show') === onlyShow.id)
+      setActiveBudgetId(first?.id || budgets[0]?.id || '')
+      setOpenEpisodes(onlyShow.episodes.slice(0, 1))
+      setAppView('budget')
+    }
+  }, [appView, shows, budgets])
 
   useEffect(() => {
     if (!hubShowId || !supabaseConfigured) { setSyncState('local'); setSyncMessage('Local mode'); setRemoteReady(true); return }
