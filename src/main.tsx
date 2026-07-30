@@ -6,7 +6,7 @@ import {
   Pencil, Trash2, Truck, Users, Warehouse, Wrench, X, Copy, Film, FolderOpen, Image, Settings, ArrowLeft, Play, Home, Link2, Upload, Download, BookOpen, CalendarDays
 } from 'lucide-react'
 import './styles.css'
-import { configured as supabaseConfigured, getSession, getShowId, getShowName, loadBudgetDocument, loadSharedLocations, saveBudgetDocument, subscribeBudget } from './supabase'
+import { configured as supabaseConfigured, getSession, getShowId, getShowName, loadBibleDocument, loadBudgetDocument, loadSharedLocations, saveBudgetDocument, subscribeBudget } from './supabase'
 
 function TaylorScoutLogo({compact=false}:{compact?:boolean}) { return <span className={`ts-logo ${compact?'compact':''}`} aria-label="Taylor Scout"><svg viewBox="0 0 74 92" role="img" aria-hidden="true"><path className="pin-outline" d="M37 3C18 3 5 17 5 36c0 22 17 40 32 53 15-13 32-31 32-53C69 17 56 3 37 3Z"/><path className="mountain" d="M16 39l15-13 8 7 10-10 12 14-12-8-10 10-8-7-15 7Z"/><path className="road" d="M19 69c12-14 24-18 31-27-3 14-12 22-20 31l7 8-9 2-9-14Z"/><path className="star" d="M21 17l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z"/></svg><span className="ts-wordmark"><b>TAYLOR SCOUT</b><small>PRODUCTION TOOLS</small></span></span> }
 
@@ -111,6 +111,34 @@ type BudgetPage = {
   holdEnd?: string
   strikeStart?: string
   strikeEnd?: string
+}
+
+
+type BibleCommitment = {
+  key?: string
+  title?: string
+  vendor?: string
+  sectionId?: string
+  status?: string
+  amount?: number
+  workingTotal?: number
+  po?: string
+  locationId?: string | null
+}
+
+function normalizeBibleCommitments(payload:any): BibleCommitment[] {
+  if (!payload?.commitments) return []
+  return Object.entries(payload.commitments).map(([key,value]:any)=>({
+    key,
+    title:value?.title || key,
+    vendor:value?.vendor || '',
+    sectionId:value?.sectionId || 'vendors',
+    status:value?.status || 'working',
+    amount:Number(value?.amount ?? value?.workingTotal ?? 0),
+    workingTotal:Number(value?.workingTotal ?? value?.amount ?? 0),
+    po:value?.po || '',
+    locationId:value?.locationId ?? payload.locationId ?? null,
+  }))
 }
 
 const standardSections: Section[] = [
@@ -335,6 +363,7 @@ function App() {
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const [printOrientation, setPrintOrientation] = useState<'portrait'|'landscape'>(() => (localStorage.getItem('tb-print-orientation') as 'portrait'|'landscape') || 'landscape')
   const [printMenuOpen, setPrintMenuOpen] = useState(false)
+  const [biblePayload, setBiblePayload] = useState<any>(null)
 
   useEffect(() => { setSaveState('saving'); const t=setTimeout(()=>{ localStorage.setItem('tb-budgets', JSON.stringify(budgets)); setSaveState('saved') },250); return ()=>clearTimeout(t) }, [budgets])
 
@@ -356,7 +385,7 @@ function App() {
       try {
         setSyncState('connecting'); setSyncMessage('Connecting…')
         const session=await getSession(); if(!session) throw new Error('Not signed in')
-        const [doc,locations]=await Promise.all([loadBudgetDocument(hubShowId),loadSharedLocations(hubShowId)])
+        const [doc,locations,bibleDoc]=await Promise.all([loadBudgetDocument(hubShowId),loadSharedLocations(hubShowId),loadBibleDocument(hubShowId)])
         if(cancelled)return
         const sharedShow:ShowProfile={id:hubShowId,name:hubShowName||'EL DORADO',productionCompany:'',season:'',episodes:Array.from(new Set(locations.map((r:any)=>r.episode_name||r.episode_id).filter(Boolean))),defaultContingency:10000,defaultCityId:'la-city',createdAt:new Date().toISOString()}
         setShows(prev=>prev.some(s=>s.id===hubShowId)?prev.map(s=>s.id===hubShowId?{...s,...sharedShow,episodes:sharedShow.episodes.length?sharedShow.episodes:s.episodes}:s):[...prev,sharedShow])
@@ -369,6 +398,7 @@ function App() {
         else if(calendarDrafts.length){ setBudgets(prev=>{const other=prev.filter(b=>b.showId!==hubShowId); return [...other,...calendarDrafts]}) }
         if(doc?.payload?.cities) setCities(doc.payload.cities)
         if(doc?.payload?.vendors) setVendors(doc.payload.vendors)
+        setBiblePayload(bibleDoc?.payload || null)
         setSyncState('connected'); setSyncMessage('Connected'); setRemoteReady(true)
       } catch(e:any) { if(!cancelled){setSyncState('error');setSyncMessage(e?.message||'Sync error');setRemoteReady(true)} }
     }
@@ -419,6 +449,12 @@ function App() {
   const city = cities.find(c => c.id === budget.cityId)
   const sectionTotals = Object.fromEntries(sections.map(s => [s.id, items.filter(i => i.sectionId === s.id).reduce((sum, i) => sum + calcItem(i), 0)]))
   const total = items.reduce((sum, i) => sum + calcItem(i), 0)
+  const allBibleCommitments = normalizeBibleCommitments(biblePayload)
+  const locationCommitments = allBibleCommitments.filter(c => !c.locationId || c.locationId === budget.sharedLocationId)
+  const orderedCommitments = locationCommitments.filter(c => c.status === 'ordered' || c.status === 'committed' || c.status === 'paid')
+  const committedTotal = orderedCommitments.reduce((sum,c)=>sum + Number(c.amount || c.workingTotal || 0),0)
+  const remainingBudget = total - committedTotal
+  const commitmentBySection = orderedCommitments.reduce((acc:Record<string,number>,c)=>{const key=c.sectionId||'vendors';acc[key]=(acc[key]||0)+Number(c.amount||c.workingTotal||0);return acc},{})
   const episodes = Array.from(new Set([...(activeShow?.episodes || []), ...showBudgets.map(b => b.episode)]))
 
   const updateBudget = (patch: Partial<BudgetPage>) => setBudgets(prev => prev.map(b => b.id === budget.id ? {...b, ...patch} : b))
@@ -499,11 +535,12 @@ function App() {
             <label>Key Assistant Location Manager<input value={budget.keyAssistantLocationManager || ''} onChange={e => updateBudget({keyAssistantLocationManager:e.target.value})} placeholder="Name assigned to this set"/></label>
             <label>Location<input value={budget.location} onChange={e => updateBudget({location:e.target.value})}/></label><label>Scenes<input value={budget.scenes || budget.setNumber || ''} onChange={e => updateBudget({scenes:e.target.value})}/></label><label>Address<input value={budget.address || ''} onChange={e => updateBudget({address:e.target.value})}/></label><label>Contact<input value={budget.contact || ''} onChange={e => updateBudget({contact:e.target.value})}/></label><label>Phone<input value={budget.phone || ''} onChange={e => updateBudget({phone:e.target.value})}/></label><label>Prep dates<input readOnly value={[budget.prepStart,budget.prepEnd].filter(Boolean).join(' – ')} placeholder="Import from Calendar"/></label><label>Shoot dates<input readOnly value={[budget.shootStart,budget.shootEnd].filter(Boolean).join(' – ')} placeholder="Import from Calendar"/></label><label>Hold dates<input readOnly value={[budget.holdStart,budget.holdEnd].filter(Boolean).join(' – ')} placeholder="Import from Calendar"/></label><label>Strike dates<input readOnly value={[budget.strikeStart,budget.strikeEnd].filter(Boolean).join(' – ')} placeholder="Import from Calendar"/></label>
           </div>
-          <div className="metrics-row">
+          <div className="metrics-row connected-financials">
             <Metric label="Current estimate" value={money(total)} tone="dark" />
+            <Metric label="Committed from Bible" value={money(committedTotal)} tone="commitment" />
+            <Metric label={remainingBudget < 0 ? "Over budget" : "Remaining"} value={money(Math.abs(remainingBudget))} tone={remainingBudget < 0 ? "over" : "remaining"} />
             <EditableMetric label="Contingency" value={budget.contingency} onChange={v => updateBudget({contingency:v})} />
             <Metric label="With contingency" value={money(total + budget.contingency)} tone="accent" />
-            <Metric label="City profile" value={city ? `${city.city}, ${city.state}` : 'None'} small />
           </div>
         </section>
 
@@ -519,7 +556,7 @@ function App() {
                   <input className="section-name-input" value={section.name} onChange={e=>updateSection(section.id,{name:e.target.value})} aria-label="Section name"/>
                   <div className="account-edit"><span>Account</span><input value={section.account} onChange={e=>updateSection(section.id,{account:e.target.value})} aria-label={`${section.name} account number`}/><small>· {sectionItems.length} item{sectionItems.length === 1 ? '' : 's'}</small></div>
                 </div>
-                <div className="section-total">{money(sectionTotals[section.id] || 0)}</div>
+                <div className="section-total"><strong>{money(sectionTotals[section.id] || 0)}</strong>{(commitmentBySection[section.id]||0)>0&&<small>{money(commitmentBySection[section.id])} committed</small>}</div>
               </div>
               {open && <div className="section-body">
                 {sectionItems.length === 0 ? <div className="empty">No items yet.</div> : <BudgetTable sectionId={section.id} items={sectionItems} onEdit={startEditItem} onDelete={deleteItem} onDuplicate={duplicateItem} onUpdate={updateItem} />}

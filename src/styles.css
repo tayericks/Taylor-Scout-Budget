@@ -107,3 +107,12 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,
 .suite-global-brand{border:0;background:transparent;color:#fff;display:flex;align-items:center;gap:10px;width:max-content;padding:0;cursor:pointer}.suite-logo-tile{width:42px;height:42px;border-radius:11px;background:linear-gradient(145deg,#64d8cf,#20a7a4);display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}.suite-logo-tile .ts-logo svg{width:28px!important;height:34px!important}.suite-logo-tile .pin-outline{stroke:#fff!important}.suite-logo-tile .mountain{fill:#fff!important}.suite-logo-tile .road{fill:#d9fff9!important}.suite-logo-tile .star{fill:#fff!important}.suite-global-brand>span:last-child{display:grid;line-height:1}.suite-global-brand b{font-size:15px;letter-spacing:.055em}.suite-global-brand small{font-size:7px;letter-spacing:.24em;color:#5bd0c7;margin-top:5px}.suite-global-bar>strong{font-size:14px;letter-spacing:.03em}.suite-global-sync{justify-self:end;font-size:12px;color:#7de2d6;font-weight:800}.suite-global-sync.error{color:#ff9f99}
 .sidebar{top:68px!important;height:calc(100vh - 68px)!important;padding-top:18px!important}.sidebar .scout-brand{display:none!important}.main-content{padding-top:68px!important}.budget-topbar{padding-top:24px!important}
 @media(max-width:900px){.suite-global-bar{position:sticky}.sidebar{top:auto!important;height:auto!important}.main-content{padding-top:0!important}}
+
+
+/* Connected Budget ↔ Bible financial status */
+.connected-financials{grid-template-columns:repeat(5,minmax(150px,1fr))}
+.metric.commitment{background:#eef4ff;border-color:#cbdcf5}.metric.commitment strong{color:#315b9d}
+.metric.remaining{background:#edf8f1;border-color:#c9e8d4}.metric.remaining strong{color:#197343}
+.metric.over{background:#fff0f0;border-color:#efc4c4}.metric.over strong{color:#b42318}
+.section-total{display:flex;flex-direction:column;align-items:flex-end;gap:2px}.section-total small{font-size:11px;color:#315b9d;font-weight:700}
+@media(max-width:1200px){.connected-financials{grid-template-columns:repeat(3,minmax(150px,1fr))}}
