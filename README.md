@@ -1,3 +1,9 @@
-# Taylor Budget v24 — Bible Commitments Sync
+# Taylor Budget v25
 
-This build reads ordered commitments from the shared Bible document and shows committed totals, remaining/over-budget variance, and section-level commitments. It keeps Budget estimates read-only from Bible.
+Connected tool switcher and simplified connection status.
+
+- Permanent Calendar / Budget / Bible switcher
+- Shared show/location IDs carried between tools
+- Removed manual Calendar JSON and Bible package workflow
+- Compact connection-status panel
+- Budget backup retained
