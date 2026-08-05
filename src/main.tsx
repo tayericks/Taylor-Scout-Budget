@@ -114,6 +114,23 @@ type BudgetPage = {
 }
 
 
+
+const BUDGET_EPISODE_ORDER = ['Block 1', '303', '304', '305', '306', '307', '308'] as const
+
+function budgetEpisodeGroup(value?: string) {
+  const raw = String(value || '').trim()
+  const normalized = raw.toUpperCase().replace(/[._-]+/g, ' ')
+  if (/\bBLOCK\s*1\b/.test(normalized) || /\bEP\s*BLOCK\s*1\b/.test(normalized)) return 'Block 1'
+  const match = normalized.match(/\b(303|304|305|306|307|308)\b/)
+  return match ? match[1] : raw
+}
+
+function orderedBudgetEpisodes(values: string[]) {
+  const normalized = values.map(budgetEpisodeGroup).filter(Boolean)
+  const extras = Array.from(new Set(normalized.filter(v => !BUDGET_EPISODE_ORDER.includes(v as any)))).sort((a,b)=>a.localeCompare(b, undefined, {numeric:true}))
+  return [...BUDGET_EPISODE_ORDER, ...extras]
+}
+
 type BibleCommitment = {
   key?: string
   title?: string
@@ -350,7 +367,7 @@ function App() {
     }]
   })
   const [activeBudgetId, setActiveBudgetId] = useState(() => budgets[0]?.id || '')
-  const [openEpisodes, setOpenEpisodes] = useState<string[]>(() => budgets[0] ? [budgets[0].episode] : [])
+  const [openEpisodes, setOpenEpisodes] = useState<string[]>(() => budgets[0] ? [budgetEpisodeGroup(budgets[0].episode)] : [])
   const [openSections, setOpenSections] = useState<string[]>(['location-fees', 'staffing', 'vendors'])
   const [activeModal, setActiveModal] = useState<'item' | 'city' | 'vendor' | 'newBudget' | 'copyBudget' | 'addSection' | 'printSelection' | 'connections' | null>(null)
   const [activeSection, setActiveSection] = useState('staffing')
@@ -376,7 +393,7 @@ function App() {
       setActiveShowId(onlyShow.id)
       const first = budgets.find(b => (b.showId || 'legacy-show') === onlyShow.id)
       setActiveBudgetId(first?.id || budgets[0]?.id || '')
-      setOpenEpisodes(onlyShow.episodes.slice(0, 1))
+      setOpenEpisodes([orderedBudgetEpisodes(onlyShow.episodes)[0]])
       setAppView('budget')
     }
   }, [appView, shows, budgets])
@@ -441,7 +458,7 @@ function App() {
   const budget = showBudgets.find(b => b.id === activeBudgetId) || showBudgets[0]
   useEffect(() => { if (!budget && showBudgets[0]) setActiveBudgetId(showBudgets[0].id) }, [budget, showBudgets])
 
-  const openShow = (show:ShowProfile) => { setActiveShowId(show.id); const first=budgets.find(b=>(b.showId||'legacy-show')===show.id); setActiveBudgetId(first?.id || ''); setOpenEpisodes(show.episodes.slice(0,1)); setAppView('budget') }
+  const openShow = (show:ShowProfile) => { setActiveShowId(show.id); const first=budgets.find(b=>(b.showId||'legacy-show')===show.id); setActiveBudgetId(first?.id || ''); setOpenEpisodes([budgetEpisodeGroup(first?.episode) || orderedBudgetEpisodes(show.episodes)[0]]); setAppView('budget') }
   const saveShow = (show:ShowProfile) => {
     const exists=shows.some(s=>s.id===show.id)
     setShows(exists?shows.map(s=>s.id===show.id?show:s):[...shows,show])
@@ -467,7 +484,7 @@ function App() {
   const committedTotal = orderedCommitments.reduce((sum,c)=>sum + Number(c.amount || c.workingTotal || 0),0)
   const remainingBudget = total - committedTotal
   const commitmentBySection = orderedCommitments.reduce((acc:Record<string,number>,c)=>{const key=c.sectionId||'vendors';acc[key]=(acc[key]||0)+Number(c.amount||c.workingTotal||0);return acc},{})
-  const episodes = Array.from(new Set([...(activeShow?.episodes || []), ...showBudgets.map(b => b.episode)]))
+  const episodes = orderedBudgetEpisodes([...(activeShow?.episodes || []), ...showBudgets.map(b => b.episode)])
 
   const updateBudget = (patch: Partial<BudgetPage>) => setBudgets(prev => prev.map(b => b.id === budget.id ? {...b, ...patch} : b))
   const updateSection = (sectionId:string, patch:{name?:string;account?:string}) => updateBudget({sectionOverrides:{...(budget.sectionOverrides||{}),[sectionId]:{...(budget.sectionOverrides?.[sectionId]||{}),...patch}}})
@@ -524,10 +541,11 @@ function App() {
         <div className="episode-nav-title"><Film size={15}/> Episodes</div>
         <div className="episode-tree">
           {episodes.map(ep => {
+            const groupedBudgets = showBudgets.filter(b => budgetEpisodeGroup(b.episode) === ep)
             const open = openEpisodes.includes(ep)
             return <div className="episode-group" key={ep}>
-              <button className="episode-toggle" onClick={() => setOpenEpisodes(open ? openEpisodes.filter(x => x !== ep) : [...openEpisodes, ep])}>{open ? <ChevronDown size={15}/> : <ChevronRight size={15}/>}<span>{ep}</span><b>{showBudgets.filter(b=>b.episode===ep).length}</b></button>
-              {open && <div className="episode-budgets">{showBudgets.filter(b=>b.episode===ep).map(b => <button key={b.id} className={`budget-link ${b.id===budget.id?'active':''}`} onClick={() => setActiveBudgetId(b.id)}><FolderOpen size={14}/><span>{b.setName}</span><small>{money(b.items.reduce((sum,i)=>sum+calcItem(i),0))}</small></button>)}</div>}
+              <button className="episode-toggle" onClick={() => setOpenEpisodes(open ? openEpisodes.filter(x => x !== ep) : [...openEpisodes, ep])}>{open ? <ChevronDown size={15}/> : <ChevronRight size={15}/>}<span>{ep}</span><b>{groupedBudgets.length}</b></button>
+              {open && <div className="episode-budgets">{groupedBudgets.map(b => <button key={b.id} className={`budget-link ${b.id===budget.id?'active':''}`} onClick={() => setActiveBudgetId(b.id)}><FolderOpen size={14}/><span>{b.setName}</span><small>{money(b.items.reduce((sum,i)=>sum+calcItem(i),0))}</small></button>)}</div>}
             </div>
           })}
         </div>
@@ -601,10 +619,10 @@ function App() {
       {activeModal === 'city' && <LibraryModal title="City Rate Library" onClose={() => setActiveModal(null)}><CityLibrary cities={cities} setCities={setCities}/></LibraryModal>}
       {activeModal === 'vendor' && <LibraryModal title="Vendor Library" onClose={() => setActiveModal(null)}><VendorLibrary vendors={vendors} setVendors={setVendors}/></LibraryModal>}
       {activeModal === 'connections' && <ConnectionsModal budget={budget} activeShow={activeShow} calendarUrl={calendarUrl} bibleUrl={bibleUrl} onClose={()=>setActiveModal(null)} />}
-      {activeModal === 'newBudget' && <BudgetSetupModal title="New Budget" episodes={episodes} onClose={() => setActiveModal(null)} onSave={(data) => { const created:BudgetPage={id:crypto.randomUUID(),showId:activeShow.id,production:activeShow.name,episode:data.episode,setName:data.setName,setNumber:data.setNumber,location:data.location,version:'Budget V1',cityId:activeShow.defaultCityId || budget.cityId,contingency:activeShow.defaultContingency,keyAssistantLocationManager:'',items:templateItems(),customSections:[],sectionOverrides:{}}; setBudgets([...budgets,created]); setActiveBudgetId(created.id); setOpenEpisodes([...new Set([...openEpisodes,created.episode])]); setActiveModal(null) }} />}
+      {activeModal === 'newBudget' && <BudgetSetupModal title="New Budget" episodes={episodes} onClose={() => setActiveModal(null)} onSave={(data) => { const created:BudgetPage={id:crypto.randomUUID(),showId:activeShow.id,production:activeShow.name,episode:data.episode,setName:data.setName,setNumber:data.setNumber,location:data.location,version:'Budget V1',cityId:activeShow.defaultCityId || budget.cityId,contingency:activeShow.defaultContingency,keyAssistantLocationManager:'',items:templateItems(),customSections:[],sectionOverrides:{}}; setBudgets([...budgets,created]); setActiveBudgetId(created.id); setOpenEpisodes([...new Set([...openEpisodes,budgetEpisodeGroup(created.episode)])]); setActiveModal(null) }} />}
       {activeModal === 'addSection' && <AddSectionModal onClose={() => setActiveModal(null)} onSave={(section) => { updateBudget({customSections:[...(budget.customSections||[]),section]}); setOpenSections([...openSections,section.id]); setActiveModal(null) }} />}
       {activeModal === 'printSelection' && <PrintSelectionModal episodes={episodes} budgets={showBudgets} currentEpisode={budget.episode} onClose={()=>setActiveModal(null)} onPrint={printSelectedBudgets}/>}
-      {activeModal === 'copyBudget' && <BudgetSetupModal title="Duplicate Entire Budget" episodes={episodes} initial={{episode:budget.episode,setName:`${budget.setName} Copy`,setNumber:budget.setNumber,location:budget.location}} helper="Choose the same episode to create another set there, or select a different episode to move the duplicate into that episode. All sections, items, rates, city settings, contingency, and PO numbers will be copied and remain editable." submitLabel="Create Duplicate" onClose={() => setActiveModal(null)} onSave={(data) => { const copy:BudgetPage={...budget,id:crypto.randomUUID(),episode:data.episode,setName:data.setName,setNumber:data.setNumber,location:data.location,version:'Budget V1',customSections:(budget.customSections||[]).map(s=>({...s})),sectionOverrides:{...(budget.sectionOverrides||{})},items:budget.items.map(i=>({...i,id:crypto.randomUUID()}))}; setBudgets([...budgets,copy]); setActiveBudgetId(copy.id); setOpenEpisodes([...new Set([...openEpisodes,copy.episode])]); setActiveModal(null) }} />}
+      {activeModal === 'copyBudget' && <BudgetSetupModal title="Duplicate Entire Budget" episodes={episodes} initial={{episode:budget.episode,setName:`${budget.setName} Copy`,setNumber:budget.setNumber,location:budget.location}} helper="Choose the same episode to create another set there, or select a different episode to move the duplicate into that episode. All sections, items, rates, city settings, contingency, and PO numbers will be copied and remain editable." submitLabel="Create Duplicate" onClose={() => setActiveModal(null)} onSave={(data) => { const copy:BudgetPage={...budget,id:crypto.randomUUID(),episode:data.episode,setName:data.setName,setNumber:data.setNumber,location:data.location,version:'Budget V1',customSections:(budget.customSections||[]).map(s=>({...s})),sectionOverrides:{...(budget.sectionOverrides||{})},items:budget.items.map(i=>({...i,id:crypto.randomUUID()}))}; setBudgets([...budgets,copy]); setActiveBudgetId(copy.id); setOpenEpisodes([...new Set([...openEpisodes,budgetEpisodeGroup(copy.episode)])]); setActiveModal(null) }} />}
     </div>
   )
 }
