@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   Building2, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ClipboardList, DollarSign,
@@ -364,8 +364,11 @@ function App() {
   const [printOrientation, setPrintOrientation] = useState<'portrait'|'landscape'>(() => (localStorage.getItem('tb-print-orientation') as 'portrait'|'landscape') || 'landscape')
   const [printMenuOpen, setPrintMenuOpen] = useState(false)
   const [biblePayload, setBiblePayload] = useState<any>(null)
+  const lastRemoteSaveAtRef = useRef(0)
+  const remoteHydratingRef = useRef(false)
 
-  useEffect(() => { setSaveState('saving'); const t=setTimeout(()=>{ localStorage.setItem('tb-budgets', JSON.stringify(budgets)); setSaveState('saved') },250); return ()=>clearTimeout(t) }, [budgets])
+  // Local backup should never interrupt typing or change button state.
+  useEffect(() => { const t=setTimeout(()=>{ localStorage.setItem('tb-budgets', JSON.stringify(budgets)) },600); return ()=>clearTimeout(t) }, [budgets])
 
   useEffect(() => {
     if (appView === 'home' && shows.length === 1) {
@@ -382,6 +385,8 @@ function App() {
     if (!hubShowId || !supabaseConfigured) { setSyncState('local'); setSyncMessage('Local mode'); setRemoteReady(true); return }
     let cancelled=false
     const hydrate = async () => {
+      if (remoteHydratingRef.current) return
+      remoteHydratingRef.current = true
       try {
         setSyncState('connecting'); setSyncMessage('Connecting…')
         const session=await getSession(); if(!session) throw new Error('Not signed in')
@@ -401,15 +406,22 @@ function App() {
         setBiblePayload(bibleDoc?.payload || null)
         setSyncState('connected'); setSyncMessage('Connected'); setRemoteReady(true)
       } catch(e:any) { if(!cancelled){setSyncState('error');setSyncMessage(e?.message||'Sync error');setRemoteReady(true)} }
+      finally { remoteHydratingRef.current = false }
     }
     hydrate()
-    const unsub=subscribeBudget(hubShowId,()=>hydrate())
+    const unsub=subscribeBudget(hubShowId,()=>{
+      // Ignore our own realtime echo and never replace state while the user is typing.
+      if (Date.now() - lastRemoteSaveAtRef.current < 5000) return
+      const active = document.activeElement as HTMLElement | null
+      if (active && ['INPUT','TEXTAREA','SELECT'].includes(active.tagName)) return
+      hydrate()
+    })
     return()=>{cancelled=true;unsub()}
   },[hubShowId,hubShowName])
 
   useEffect(() => {
     if(!hubShowId || !supabaseConfigured || !remoteReady || syncState==='error') return
-    const t=setTimeout(async()=>{try{setSaveState('saving');await saveBudgetDocument(hubShowId,{version:1,budgets:budgets.filter(b=>b.showId===hubShowId),cities,vendors});setSaveState('saved');setSyncState('connected');setSyncMessage('Connected')}catch(e:any){setSyncState('error');setSyncMessage(e?.message||'Sync error')}},700)
+    const t=setTimeout(async()=>{try{await saveBudgetDocument(hubShowId,{version:1,budgets:budgets.filter(b=>b.showId===hubShowId),cities,vendors});lastRemoteSaveAtRef.current=Date.now();setSyncState('connected');setSyncMessage('Connected')}catch(e:any){setSyncState('error');setSyncMessage(e?.message||'Sync error')}},3000)
     return()=>clearTimeout(t)
   },[budgets,cities,vendors,hubShowId,remoteReady])
   useEffect(() => localStorage.setItem('tb-cities', JSON.stringify(cities)), [cities])
@@ -460,7 +472,7 @@ function App() {
   const updateBudget = (patch: Partial<BudgetPage>) => setBudgets(prev => prev.map(b => b.id === budget.id ? {...b, ...patch} : b))
   const updateSection = (sectionId:string, patch:{name?:string;account?:string}) => updateBudget({sectionOverrides:{...(budget.sectionOverrides||{}),[sectionId]:{...(budget.sectionOverrides?.[sectionId]||{}),...patch}}})
   const updateItem = (id:string, patch:Partial<BudgetItem>) => updateBudget({items:applyLocationFeeDefaults(items,id,patch)})
-  const saveNow = async () => { localStorage.setItem('tb-budgets', JSON.stringify(budgets)); localStorage.setItem('tb-cities', JSON.stringify(cities)); localStorage.setItem('tb-vendors', JSON.stringify(vendors)); if(hubShowId&&supabaseConfigured){try{setSaveState('saving');await saveBudgetDocument(hubShowId,{version:1,budgets:budgets.filter(b=>b.showId===hubShowId),cities,vendors});setSyncState('connected');setSyncMessage('Connected')}catch(e:any){setSyncState('error');setSyncMessage(e?.message||'Sync error')}} setSaveState('saved') }
+  const saveNow = async () => { localStorage.setItem('tb-budgets', JSON.stringify(budgets)); localStorage.setItem('tb-cities', JSON.stringify(cities)); localStorage.setItem('tb-vendors', JSON.stringify(vendors)); if(hubShowId&&supabaseConfigured){try{setSaveState('saving');await saveBudgetDocument(hubShowId,{version:1,budgets:budgets.filter(b=>b.showId===hubShowId),cities,vendors});lastRemoteSaveAtRef.current=Date.now();setSyncState('connected');setSyncMessage('Connected')}catch(e:any){setSyncState('error');setSyncMessage(e?.message||'Sync error')}} setSaveState('saved') }
   const printBudget = () => { setPrintBudgetIds([budget.id]); saveNow(); window.setTimeout(() => window.print(), 80) }
   const printSelectedBudgets = (ids:string[]) => { setPrintBudgetIds(ids); saveNow(); setActiveModal(null); window.setTimeout(() => window.print(), 120) }
   const saveItem = (item: BudgetItem) => {
