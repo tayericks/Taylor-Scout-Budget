@@ -117,12 +117,11 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,
 .section-total{display:flex;flex-direction:column;align-items:flex-end;gap:2px}.section-total small{font-size:11px;color:#315b9d;font-weight:700}
 @media(max-width:1200px){.connected-financials{grid-template-columns:repeat(3,minmax(150px,1fr))}}
 
-/* Connected tool switcher */
-.tool-switcher{display:inline-flex;align-items:center;border:1px solid #cbd8e2;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 1px 2px rgba(10,35,55,.06)}
-.tool-switcher button{display:inline-flex;align-items:center;gap:7px;border:0;border-right:1px solid #d8e2ea;background:#fff;color:#334b60;padding:11px 14px;font-weight:800;cursor:pointer}
-.tool-switcher button:last-child{border-right:0}
-.tool-switcher button:hover{background:#eef7f6}
-.tool-switcher button.active{background:#0f3348;color:#fff}
+/* Connected tool switcher — matches Calendar */
+.tool-switcher{display:flex;align-items:center;padding:3px;background:#0a1d2d;border:1px solid #2b4b61;border-radius:10px;gap:2px;box-shadow:none;overflow:visible}
+.tool-switcher .tool-tab{border:0!important;background:transparent!important;color:#bed0dc!important;padding:7px 10px!important;border-radius:7px!important;font-size:11px!important;font-weight:850!important;letter-spacing:.02em!important;cursor:pointer;line-height:1.2}
+.tool-switcher .tool-tab:hover{background:#18384f!important;color:#fff!important}
+.tool-switcher .tool-tab.active{background:#1ca4b3!important;color:#fff!important}
 .connection-status-list{display:grid;gap:10px;margin:18px 0}
 .connection-status-list>div{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;padding:13px 14px;border:1px solid #d7e2ea;border-radius:12px;background:#f8fbfc;color:#183247}
 .connection-status-list span{display:flex;flex-direction:column;gap:2px}
