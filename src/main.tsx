@@ -378,6 +378,7 @@ function App() {
   const [remoteReady, setRemoteReady] = useState(false)
   const [printBudgetIds, setPrintBudgetIds] = useState<string[]>([])
   const [detailsExpanded, setDetailsExpanded] = useState(false)
+  const [showActuals, setShowActuals] = useState(false)
   const [printOrientation, setPrintOrientation] = useState<'portrait'|'landscape'>(() => (localStorage.getItem('tb-print-orientation') as 'portrait'|'landscape') || 'landscape')
   const [printMenuOpen, setPrintMenuOpen] = useState(false)
   const [biblePayload, setBiblePayload] = useState<any>(null)
@@ -562,7 +563,7 @@ function App() {
           <div className="top-actions"><button className="secondary" onClick={()=>window.location.href='https://www.taylorscout.com'}><Home size={17}/> Home</button><button className="save-budget-btn" onClick={saveNow} disabled={saveState==='saving'} aria-busy={saveState==='saving'}>Save Budget</button>
             <button className="secondary" onClick={() => setActiveModal('copyBudget')}><Copy size={17}/> Duplicate Budget</button>
             <div className="print-dropdown"><button className="secondary print-trigger" onClick={()=>setPrintMenuOpen(!printMenuOpen)}><Printer size={16}/> Print <ChevronDown size={15}/></button>{printMenuOpen&&<div className="print-menu"><button onClick={()=>{setPrintOrientation('landscape');setPrintMenuOpen(false);window.setTimeout(printBudget,80)}}><FileText size={16}/><span><b>Landscape</b><small>Print this budget landscape</small></span></button><button onClick={()=>{setPrintMenuOpen(false);printBudget()}}><Printer size={16}/><span><b>Set</b><small>Print the current set budget</small></span></button><button onClick={()=>{setPrintMenuOpen(false);setActiveModal('printSelection')}}><Copy size={16}/><span><b>Episode / Sets</b><small>Choose multiple set budgets</small></span></button></div>}</div>
-            <button className="secondary" onClick={()=>setOpenSections(openSections.length===sections.length?[]:sections.map(s=>s.id))}>{openSections.length===sections.length?<><ChevronsUp size={17}/> Collapse All</>:<><ChevronsDown size={17}/> Expand All</>}</button>
+            <button className={`secondary actuals-toggle ${showActuals?'active':''}`} onClick={()=>setShowActuals(v=>!v)}><ClipboardList size={17}/>{showActuals?'Hide Actuals':'Show Actuals'}</button><button className="secondary" onClick={()=>setOpenSections(openSections.length===sections.length?[]:sections.map(s=>s.id))}>{openSections.length===sections.length?<><ChevronsUp size={17}/> Collapse All</>:<><ChevronsDown size={17}/> Expand All</>}</button>
             <button className="secondary" onClick={() => setActiveModal('connections')}><Link2 size={17}/> Connections</button><button className="primary" onClick={() => startAddItem('unexpected')}><Plus size={17}/> Add Cost</button>
           </div>
         </header>
@@ -584,6 +585,7 @@ function App() {
             <Metric label={remainingBudget < 0 ? "Over budget" : "Remaining"} value={money(Math.abs(remainingBudget))} tone={remainingBudget < 0 ? "over" : "remaining"} />
             <EditableMetric label="Contingency" value={budget.contingency} onChange={v => updateBudget({contingency:v})} />
             <Metric label="With contingency" value={money(total + budget.contingency)} tone="accent" />
+            {showActuals&&<><Metric label="Actuals" value={money(items.reduce((sum,i)=>sum+(i.actualAmount||0),0))} tone="actual"/><Metric label="Variance" value={money(total-items.reduce((sum,i)=>sum+(i.actualAmount||0),0))} tone={total-items.reduce((sum,i)=>sum+(i.actualAmount||0),0)<0?'over':'remaining'}/></>}
           </div>
         </section>
 
@@ -602,7 +604,7 @@ function App() {
                 <div className="section-total"><strong>{money(sectionTotals[section.id] || 0)}</strong>{(commitmentBySection[section.id]||0)>0&&<small>{money(commitmentBySection[section.id])} committed</small>}</div>
               </div>
               {open && <div className="section-body">
-                {sectionItems.length === 0 ? <div className="empty">No items yet.</div> : <BudgetTable sectionId={section.id} items={sectionItems} onEdit={startEditItem} onDelete={deleteItem} onDuplicate={duplicateItem} onUpdate={updateItem} />}
+                {sectionItems.length === 0 ? <div className="empty">No items yet.</div> : <BudgetTable sectionId={section.id} items={sectionItems} onEdit={startEditItem} onDelete={deleteItem} onDuplicate={duplicateItem} onUpdate={updateItem} showActuals={showActuals} />}
                 <button className="add-row no-print" onClick={() => startAddItem(section.id)}><Plus size={16}/> Add item to {section.name}</button>
               </div>}
             </section>
@@ -737,15 +739,15 @@ function InlineText({value,onChange,className,ariaLabel}:{value:string,onChange:
 function InlineNumber({value,onChange,ariaLabel}:{value?:number,onChange:(v:number)=>void,ariaLabel:string}) {
   return <input className="inline-cell-input number" type="number" value={value ?? ''} onClick={e=>e.stopPropagation()} onChange={e=>onChange(e.target.value===''?0:+e.target.value)} aria-label={ariaLabel}/>
 }
-function BudgetTable({sectionId, items, onEdit, onDelete, onDuplicate, onUpdate}:{sectionId:string,items:BudgetItem[],onEdit:(item:BudgetItem)=>void,onDelete:(id:string)=>void,onDuplicate:(item:BudgetItem)=>void,onUpdate:(id:string,patch:Partial<BudgetItem>)=>void}) {
+function BudgetTable({sectionId, items, onEdit, onDelete, onDuplicate, onUpdate, showActuals=false}:{sectionId:string,items:BudgetItem[],onEdit:(item:BudgetItem)=>void,onDelete:(id:string)=>void,onDuplicate:(item:BudgetItem)=>void,onUpdate:(id:string,patch:Partial<BudgetItem>)=>void,showActuals?:boolean}) {
   const locationFee = sectionId === 'location-fees'
   const labor = ['staffing','security','police','fire'].includes(sectionId)
-  if (!locationFee && !labor) return <>{items.map(item => <BudgetRow key={item.id} item={item} onEdit={() => onEdit(item)} onDelete={() => onDelete(item.id)} onDuplicate={() => onDuplicate(item)} />)}</>
+  if (!locationFee && !labor) return <>{items.map(item => <BudgetRow key={item.id} item={item} onEdit={() => onEdit(item)} onDelete={() => onDelete(item.id)} onDuplicate={() => onDuplicate(item)} onUpdate={patch=>onUpdate(item.id,patch)} showActuals={showActuals} />)}</>
   return <div className={`entry-table ${locationFee ? 'fee-table' : 'labor-table'}`}>
     <div className="entry-table-head">
       <span>Description</span><span>PO #</span>
       {locationFee ? <><span>Rate</span><span>Days</span></> : <><span>Pers</span><span>Days</span><span>Hrs</span><span>1.5×</span><span>2×</span><span>Rate</span><span>Equip/Flat</span></>}
-      <span>Total</span><span className="no-print"></span>
+      <span>Total</span>{showActuals&&<><span>Actual</span><span>Variance</span></>}<span className="no-print"></span>
     </div>
     {items.map(item => <div key={item.id} className="entry-table-row" >
       <span className="entry-description"><InlineText value={item.name} onChange={v=>onUpdate(item.id,{name:v})} ariaLabel="Description"/>{item.vendor && <small>{item.vendor}</small>}</span>
@@ -757,16 +759,16 @@ function BudgetTable({sectionId, items, onEdit, onDelete, onDuplicate, onUpdate}
         <span><InlineNumber value={item.calcType==='dayRate'?item.dayRate:item.hourlyRate} onChange={v=>onUpdate(item.id,item.calcType==='dayRate'?{dayRate:v}:{hourlyRate:v})} ariaLabel="Rate"/></span>
         <span><InlineNumber value={item.calcType==='flat'?item.flatAmount:item.kitFee} onChange={v=>onUpdate(item.id,item.calcType==='flat'?{flatAmount:v}:{kitFee:v})} ariaLabel="Equipment or flat fee"/></span>
       </>}
-      <span className="table-total">{moneyPrecise(calcItem(item))}</span>
+      <span className="table-total">{moneyPrecise(calcItem(item))}</span>{showActuals&&<><span><InlineNumber value={item.actualAmount} onChange={v=>onUpdate(item.id,{actualAmount:v,status:'actual'})} ariaLabel="Actual invoice amount"/></span><span className={`variance-cell ${(calcItem(item)-(item.actualAmount||0))<0?'negative':''}`}>{moneyPrecise(calcItem(item)-(item.actualAmount||0))}</span></>}
       <span className="table-actions no-print"><button className="icon-btn" onClick={()=>onEdit(item)} title="Open detailed editor"><Pencil size={14}/></button><button className="icon-btn" onClick={()=>onDuplicate(item)} title="Duplicate item"><Copy size={14}/></button><button className="icon-btn danger" onClick={()=>onDelete(item.id)} title="Delete item"><Trash2 size={14}/></button></span>
     </div>)}
   </div>
 }
 
-function BudgetRow({item, onEdit, onDelete, onDuplicate}:{item:BudgetItem,onEdit:()=>void,onDelete:()=>void,onDuplicate:()=>void}) {
+function BudgetRow({item, onEdit, onDelete, onDuplicate, onUpdate, showActuals=false}:{item:BudgetItem,onEdit:()=>void,onDelete:()=>void,onDuplicate:()=>void,onUpdate:(patch:Partial<BudgetItem>)=>void,showActuals?:boolean}) {
   return <div className="budget-row editable-row" role="button" tabIndex={0} onClick={onEdit} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onEdit() }}>
     <div><strong>{item.name}</strong>{item.poNumber && <span className="po-badge">PO {item.poNumber}</span>}<small>{item.vendor ? `${item.vendor} · ` : ''}{formulaText(item)}</small><span className="edit-hint no-print">Click to edit</span></div>
-    <div className="row-total">{moneyPrecise(calcItem(item))}<button className="icon-btn no-print" aria-label={`Edit ${item.name}`} onClick={e => { e.stopPropagation(); onEdit() }}><Pencil size={15}/></button><button className="icon-btn no-print" aria-label={`Duplicate ${item.name}`} onClick={e => { e.stopPropagation(); onDuplicate() }}><Copy size={15}/></button><button className="icon-btn no-print danger" aria-label={`Delete ${item.name}`} onClick={e => { e.stopPropagation(); onDelete() }}><Trash2 size={15}/></button></div>
+    <div className="row-total"><span>{moneyPrecise(calcItem(item))}</span>{showActuals&&<span className="row-actuals"><label>Actual <InlineNumber value={item.actualAmount} onChange={v=>onUpdate({actualAmount:v,status:'actual'})} ariaLabel={`Actual for ${item.name}`}/></label><small className={(calcItem(item)-(item.actualAmount||0))<0?'negative':''}>Variance {moneyPrecise(calcItem(item)-(item.actualAmount||0))}</small></span>}<button className="icon-btn no-print" aria-label={`Edit ${item.name}`} onClick={e => { e.stopPropagation(); onEdit() }}><Pencil size={15}/></button><button className="icon-btn no-print" aria-label={`Duplicate ${item.name}`} onClick={e => { e.stopPropagation(); onDuplicate() }}><Copy size={15}/></button><button className="icon-btn no-print danger" aria-label={`Delete ${item.name}`} onClick={e => { e.stopPropagation(); onDelete() }}><Trash2 size={15}/></button></div>
   </div>
 }
 
