@@ -5,7 +5,6 @@ import {
   FileText, Flame, MapPin, Plus, Printer, Shield, Sparkles,
   Pencil, Trash2, Truck, Users, Warehouse, Wrench, X, Copy, Film, FolderOpen, Image, Settings, ArrowLeft, Play, Home, Link2, Upload, Download, BookOpen, CalendarDays
 } from 'lucide-react'
-import { mountTaylorScoutCore } from '../../../packages/core/browser.js';
 import './styles.css'
 import { configured as supabaseConfigured, getSession, getShowId, getShowName, loadBibleDocument, loadBudgetDocument, loadSharedLocations, saveBudgetDocument, subscribeBudget } from './supabase'
 
@@ -867,5 +866,4 @@ function VendorLibrary({vendors,setVendors}:{vendors:VendorItem[],setVendors:(v:
 
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>)
 
-mountTaylorScoutCore({ toolId: 'budget' });
 
