@@ -143,14 +143,3 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,
 
 /* Taylor Scout Suite Design System v1 */
 :root{--ts-navy:#061f33;--ts-navy-2:#0b2e46;--ts-teal:#17b7a7;--ts-teal-dark:#0c8079;--ts-mint:#bcefe7;--ts-bg:#f3f6f8;--ts-surface:#ffffff;--ts-border:#d9e2e8;--ts-text:#102a3b;--ts-muted:#607180;--ts-radius:12px;--ts-shadow:0 10px 28px rgba(6,31,51,.08);--ts-font:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{font-family:var(--ts-font);color:var(--ts-text)}button,input,select,textarea{font:inherit}button{transition:none!important}.topbar,.suite-topbar,.suite-global-bar{background:var(--ts-navy)!important}.primary,.new-bible,.sidebar-new,.new-budget-btn{background:var(--ts-teal)!important;border-color:var(--ts-teal)!important}.primary:hover,.new-bible:hover,.sidebar-new:hover,.new-budget-btn:hover{background:var(--ts-teal-dark)!important}.tool-switcher{border-radius:10px!important}.tool-tab{border-radius:8px!important}.search,.search-box{border-radius:10px!important}.modal,.section-card,.hero-card,.project-card{border-radius:var(--ts-radius)!important}
-
-
-/* Core v2.1: readable budget identity and destructive budget action */
-.budget-title .eyebrow{color:#f4a340!important}
-.budget-title h1{color:#f7fbfd!important;text-shadow:0 1px 1px rgba(0,0,0,.14)}
-.budget-title p{color:#a9bdc9!important}
-.budget-topbar .top-actions{grid-template-columns:repeat(9,minmax(0,1fr))!important}
-.delete-budget-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #dd5a55;border-radius:10px;background:rgba(177,42,38,.08);color:#e56b66;font-weight:800;padding:10px 14px;cursor:pointer}
-.delete-budget-btn:hover{background:#b8322e;color:#fff;border-color:#b8322e}
-@media(max-width:1250px){.budget-topbar .top-actions{grid-template-columns:repeat(3,1fr)!important}}
-@media(max-width:760px){.budget-topbar .top-actions{grid-template-columns:repeat(2,1fr)!important}}

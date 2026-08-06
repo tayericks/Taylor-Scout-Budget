@@ -369,7 +369,7 @@ function App() {
   const [activeBudgetId, setActiveBudgetId] = useState(() => budgets[0]?.id || '')
   const [openEpisodes, setOpenEpisodes] = useState<string[]>(() => budgets[0] ? [budgetEpisodeGroup(budgets[0].episode)] : [])
   const [openSections, setOpenSections] = useState<string[]>(['location-fees', 'staffing', 'vendors'])
-  const [activeModal, setActiveModal] = useState<'item' | 'city' | 'vendor' | 'newBudget' | 'copyBudget' | 'addSection' | 'printSelection' | 'connections' | 'deleteBudget' | null>(null)
+  const [activeModal, setActiveModal] = useState<'item' | 'city' | 'vendor' | 'newBudget' | 'copyBudget' | 'addSection' | 'printSelection' | 'connections' | null>(null)
   const [activeSection, setActiveSection] = useState('staffing')
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
   const [saveState, setSaveState] = useState<'saved'|'saving'>('saved')
@@ -502,12 +502,6 @@ function App() {
     if (!openSections.includes(item.sectionId)) setOpenSections(prev => [...prev, item.sectionId])
   }
   const deleteItem = (id: string) => updateBudget({items: items.filter(i => i.id !== id)})
-  const deleteCurrentBudget = () => {
-    const remaining = showBudgets.filter(b => b.id !== budget.id)
-    setBudgets(prev => prev.filter(b => b.id !== budget.id))
-    setActiveBudgetId(remaining[0]?.id || '')
-    setActiveModal(null)
-  }
   const duplicateItem = (item: BudgetItem) => {
     const duplicate: BudgetItem = {...item, id: crypto.randomUUID(), name: `${item.name} Copy`}
     const index = items.findIndex(i => i.id === item.id)
@@ -570,7 +564,7 @@ function App() {
             <button className="secondary" onClick={() => setActiveModal('copyBudget')}><Copy size={17}/> Duplicate Budget</button>
             <div className="print-dropdown"><button className="secondary print-trigger" onClick={()=>setPrintMenuOpen(!printMenuOpen)}><Printer size={16}/> Print <ChevronDown size={15}/></button>{printMenuOpen&&<div className="print-menu"><button onClick={()=>{setPrintOrientation('landscape');setPrintMenuOpen(false);window.setTimeout(printBudget,80)}}><FileText size={16}/><span><b>Landscape</b><small>Print this budget landscape</small></span></button><button onClick={()=>{setPrintMenuOpen(false);printBudget()}}><Printer size={16}/><span><b>Set</b><small>Print the current set budget</small></span></button><button onClick={()=>{setPrintMenuOpen(false);setActiveModal('printSelection')}}><Copy size={16}/><span><b>Episode / Sets</b><small>Choose multiple set budgets</small></span></button></div>}</div>
             <button className={`secondary actuals-toggle ${showActuals?'active':''}`} onClick={()=>setShowActuals(v=>!v)}><ClipboardList size={17}/>{showActuals?'Hide Actuals':'Show Actuals'}</button><button className="secondary" onClick={()=>setOpenSections(openSections.length===sections.length?[]:sections.map(s=>s.id))}>{openSections.length===sections.length?<><ChevronsUp size={17}/> Collapse All</>:<><ChevronsDown size={17}/> Expand All</>}</button>
-            <button className="secondary" onClick={() => setActiveModal('connections')}><Link2 size={17}/> Connections</button><button className="primary" onClick={() => startAddItem('unexpected')}><Plus size={17}/> Add Cost</button><button className="delete-budget-btn" onClick={() => setActiveModal('deleteBudget')}><Trash2 size={17}/> Delete Budget</button>
+            <button className="secondary" onClick={() => setActiveModal('connections')}><Link2 size={17}/> Connections</button><button className="primary" onClick={() => startAddItem('unexpected')}><Plus size={17}/> Add Cost</button>
           </div>
         </header>
 
@@ -631,7 +625,6 @@ function App() {
       {activeModal === 'addSection' && <AddSectionModal onClose={() => setActiveModal(null)} onSave={(section) => { updateBudget({customSections:[...(budget.customSections||[]),section]}); setOpenSections([...openSections,section.id]); setActiveModal(null) }} />}
       {activeModal === 'printSelection' && <PrintSelectionModal episodes={episodes} budgets={showBudgets} currentEpisode={budget.episode} onClose={()=>setActiveModal(null)} onPrint={printSelectedBudgets}/>}
       {activeModal === 'copyBudget' && <BudgetSetupModal title="Duplicate Entire Budget" episodes={episodes} initial={{episode:budget.episode,setName:`${budget.setName} Copy`,setNumber:budget.setNumber,location:budget.location}} helper="Choose the same episode to create another set there, or select a different episode to move the duplicate into that episode. All sections, items, rates, city settings, contingency, and PO numbers will be copied and remain editable." submitLabel="Create Duplicate" onClose={() => setActiveModal(null)} onSave={(data) => { const copy:BudgetPage={...budget,id:crypto.randomUUID(),episode:data.episode,setName:data.setName,setNumber:data.setNumber,location:data.location,version:'Budget V1',customSections:(budget.customSections||[]).map(s=>({...s})),sectionOverrides:{...(budget.sectionOverrides||{})},items:budget.items.map(i=>({...i,id:crypto.randomUUID()}))}; setBudgets([...budgets,copy]); setActiveBudgetId(copy.id); setOpenEpisodes([...new Set([...openEpisodes,budgetEpisodeGroup(copy.episode)])]); setActiveModal(null) }} />}
-      {activeModal === 'deleteBudget' && <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setActiveModal(null)}}><div className="modal delete-show-modal" role="dialog" aria-modal="true" aria-labelledby="delete-budget-title"><div className="modal-head"><div><span className="eyebrow">DELETE BUDGET</span><h2 id="delete-budget-title">Delete {budget.setName}?</h2></div><button className="icon-btn" onClick={()=>setActiveModal(null)} aria-label="Close"><X/></button></div><div className="delete-warning"><Trash2 size={24}/><div><strong>This cannot be undone.</strong><p>The budget and all of its line items will be removed. Other budgets in {budget.episode} will not be affected.</p></div></div><div className="modal-actions"><button className="secondary" onClick={()=>setActiveModal(null)}>Cancel</button><button className="danger-button" onClick={deleteCurrentBudget}><Trash2 size={16}/> Delete Budget</button></div></div></div>}
     </div>
   )
 }
