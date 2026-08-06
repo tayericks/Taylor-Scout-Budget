@@ -39,7 +39,7 @@ type BudgetItem = {
   poNumber?: string
   vendorBillingType?: 'weekly' | 'flat'
   vendorFlatRate?: number
-  status?: 'estimate' | 'approved' | 'committed' | 'paid'
+  status?: 'estimate' | 'approved' | 'committed' | 'paid' | 'actual'
   actualAmount?: number
   bibleOrderedAmount?: number
 }
