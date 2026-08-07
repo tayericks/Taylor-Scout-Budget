@@ -1,0 +1,5 @@
+Taylor Budget v30.8
+
+Budget content update only; locked visual design unchanged.
+
+Added standard recurring location-budget sections and default line items based on the supplied production budget reference, including site fees, personnel, police, fire, security, parking, permits, site support rentals/tents, equipment/expendables, and heating/AC.

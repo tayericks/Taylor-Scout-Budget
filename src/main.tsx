@@ -168,8 +168,11 @@ const standardSections: Section[] = [
   { id: 'security', name: 'Security', icon: 'shield', account: '36-30' },
   { id: 'police', name: 'Police & Traffic Control', icon: 'truck', account: '36-31' },
   { id: 'fire', name: 'Fire & Safety', icon: 'flame', account: '36-32' },
-  { id: 'permits', name: 'Permits & Notifications', icon: 'clipboard', account: '36-02' },
   { id: 'parking', name: 'Parking & Logistics', icon: 'map', account: '36-03' },
+  { id: 'permits', name: 'Permits & Notifications', icon: 'clipboard', account: '36-02' },
+  { id: 'site-support-rentals', name: 'Site Support Rentals & Tents', icon: 'warehouse', account: '36-08' },
+  { id: 'equipment-rentals', name: 'Equipment Rentals & Expendables', icon: 'wrench', account: '36-36' },
+  { id: 'heating-ac', name: 'Heating / AC Rentals / AC Techs', icon: 'flame', account: '36-55' },
   { id: 'vendors', name: 'Vendors & Equipment Rentals', icon: 'warehouse', account: '36-36' },
   { id: 'layout', name: 'Layout & Protection', icon: 'wrench', account: '36-05' },
   { id: 'support', name: 'Support Payments & Services', icon: 'dollar', account: '36-06' },
@@ -178,20 +181,65 @@ const standardSections: Section[] = [
 ]
 
 const templateItems = (): BudgetItem[] => [
+  // Location site fees
   {id:crypto.randomUUID(),sectionId:'location-fees',name:'Prep Day',calcType:'rateDay',days:0,dayRate:0,status:'estimate'},
   {id:crypto.randomUUID(),sectionId:'location-fees',name:'Shoot Day',calcType:'rateDay',days:0,dayRate:0,status:'estimate'},
   {id:crypto.randomUUID(),sectionId:'location-fees',name:'Strike Day',calcType:'rateDay',days:0,dayRate:0,status:'estimate'},
   {id:crypto.randomUUID(),sectionId:'location-fees',name:'Hold Day',calcType:'rateDay',days:0,dayRate:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'location-fees',name:'Neighbor Gratuities',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'location-fees',name:'Additional / Agreed Site Fee',calcType:'flat',flatAmount:0,status:'estimate'},
+
+  // Site personnel
+  {id:crypto.randomUUID(),sectionId:'staffing',name:'Site Rep',calcType:'hourly',people:0,days:1,regHours:8,ot15Hours:0,ot2Hours:0,hourlyRate:25,kitFee:0,kitFeeMode:'flat',status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'staffing',name:'Electrician',calcType:'hourly',people:0,days:1,regHours:8,ot15Hours:0,ot2Hours:0,hourlyRate:0,kitFee:0,kitFeeMode:'flat',status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'staffing',name:'HVAC',calcType:'hourly',people:0,days:1,regHours:8,ot15Hours:0,ot2Hours:0,hourlyRate:0,kitFee:0,kitFeeMode:'flat',status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'staffing',name:'Layout',calcType:'hourly',people:0,days:1,regHours:8,ot15Hours:0,ot2Hours:0,hourlyRate:0,kitFee:0,kitFeeMode:'flat',status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'staffing',name:'Restroom Attendant',calcType:'hourly',people:0,days:1,regHours:8,ot15Hours:0,ot2Hours:0,hourlyRate:0,kitFee:0,kitFeeMode:'flat',status:'estimate'},
+
+  // Security baseline rows remain Budget-owned; planner commitments can roll into these later.
   ...['Prep','Shoot','Strike','Hold'].flatMap(phase => ([
     {id:crypto.randomUUID(),sectionId:'security',name:`${phase} Guards`,calcType:'hourly' as CalcType,people:0,days:1,regHours:8,ot15Hours:4,ot2Hours:0,hourlyRate:33,kitFee:0,kitFeeMode:'perDay' as const,status:'estimate' as const},
     {id:crypto.randomUUID(),sectionId:'security',name:`${phase} Supervisor`,calcType:'hourly' as CalcType,people:0,days:1,regHours:8,ot15Hours:4,ot2Hours:0,hourlyRate:36,kitFee:0,kitFeeMode:'perDay' as const,status:'estimate' as const},
   ])),
-  {id:crypto.randomUUID(),sectionId:'parking',name:'Basecamp',calcType:'rateDay',days:0,dayRate:0,status:'estimate'},
-  {id:crypto.randomUUID(),sectionId:'parking',name:'Crew Parking',calcType:'rateDay',days:0,dayRate:0,status:'estimate'},
-  {id:crypto.randomUUID(),sectionId:'parking',name:'Catering',calcType:'rateDay',days:0,dayRate:0,status:'estimate'},
-  {id:crypto.randomUUID(),sectionId:'vendors',name:'Restrooms',calcType:'vendor',vendor:'',units:0,weeks:1,servicesPerUnit:0,weeklyRate:850,serviceRate:150,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'security',name:'Security Gaffer — Shoot',calcType:'hourly',people:0,days:1,regHours:8,ot15Hours:4,ot2Hours:0,hourlyRate:0,kitFee:0,kitFeeMode:'perDay',status:'estimate'},
+
+  // Police / Fire
+  {id:crypto.randomUUID(),sectionId:'police',name:'LAPD — Shoot Day Lane Closures',calcType:'hourly',people:0,days:1,regHours:8,ot15Hours:4,ot2Hours:0,hourlyRate:0,kitFee:0,kitFeeMode:'flat',status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'police',name:'LAPD — Prep / Wrap Lane Closures',calcType:'hourly',people:0,days:1,regHours:8,ot15Hours:4,ot2Hours:0,hourlyRate:0,kitFee:0,kitFeeMode:'flat',status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'fire',name:'LA City Fire Officer',calcType:'hourly',people:0,days:1,regHours:8,ot15Hours:4,ot2Hours:0,hourlyRate:127,kitFee:0,kitFeeMode:'flat',status:'estimate'},
+
+  // Parking / logistics
+  {id:crypto.randomUUID(),sectionId:'parking',name:'Crew Parking — Prep / Wrap',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'parking',name:'Crew Parking — Shoot',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'parking',name:'Basecamp',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'parking',name:'Background Parking',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'parking',name:'Truck Parking',calcType:'flat',flatAmount:0,status:'estimate'},
+
+  // Permits
+  {id:crypto.randomUUID(),sectionId:'permits',name:'Permit Application',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'permits',name:'Signatures & Notification',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'permits',name:'Lane Closures & Closure Fees',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'permits',name:'Fire Department Spot Check',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'permits',name:'Street Posting / Barricades / Signage',calcType:'flat',flatAmount:0,status:'estimate'},
+
+  // Site support rentals & tents
+  {id:crypto.randomUUID(),sectionId:'site-support-rentals',name:'Catering Location / Lunchboxes',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'site-support-rentals',name:'Staging / Holding Areas',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'site-support-rentals',name:'Tents & Background Processing',calcType:'flat',flatAmount:0,status:'estimate'},
+
+  // Equipment rentals & expendables
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'Layout Materials',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'Maps',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'Restrooms',calcType:'vendor',vendor:'',units:0,weeks:1,servicesPerUnit:0,weeklyRate:850,serviceRate:150,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'Lights',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'Handwashing Stations',calcType:'flat',flatAmount:0,status:'estimate'},
+
+  // Heating / AC
+  {id:crypto.randomUUID(),sectionId:'heating-ac',name:'Heating / AC Equipment',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'heating-ac',name:'AC Techs',calcType:'hourly',people:0,days:1,regHours:8,ot15Hours:4,ot2Hours:0,hourlyRate:0,kitFee:0,kitFeeMode:'flat',status:'estimate'},
+
+  // Existing general-purpose vendor defaults retained for compatibility.
   {id:crypto.randomUUID(),sectionId:'vendors',name:'Tents, Tables & Chairs',calcType:'flat',flatAmount:0,status:'estimate'},
-  {id:crypto.randomUUID(),sectionId:'vendors',name:'AC',calcType:'flat',flatAmount:0,status:'estimate'},
   {id:crypto.randomUUID(),sectionId:'vendors',name:'BG Changing',calcType:'flat',flatAmount:0,status:'estimate'},
 ]
 
