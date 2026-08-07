@@ -201,7 +201,6 @@ const templateItems = (): BudgetItem[] => [
     {id:crypto.randomUUID(),sectionId:'security',name:`${phase} Guards`,calcType:'hourly' as CalcType,people:0,days:1,regHours:8,ot15Hours:4,ot2Hours:0,hourlyRate:33,kitFee:0,kitFeeMode:'perDay' as const,status:'estimate' as const},
     {id:crypto.randomUUID(),sectionId:'security',name:`${phase} Supervisor`,calcType:'hourly' as CalcType,people:0,days:1,regHours:8,ot15Hours:4,ot2Hours:0,hourlyRate:36,kitFee:0,kitFeeMode:'perDay' as const,status:'estimate' as const},
   ])),
-  {id:crypto.randomUUID(),sectionId:'security',name:'Security Gaffer — Shoot',calcType:'hourly',people:0,days:1,regHours:8,ot15Hours:4,ot2Hours:0,hourlyRate:0,kitFee:0,kitFeeMode:'perDay',status:'estimate'},
 
   // Police / Fire
   {id:crypto.randomUUID(),sectionId:'police',name:'LAPD — Shoot Day Lane Closures',calcType:'hourly',people:0,days:1,regHours:8,ot15Hours:4,ot2Hours:0,hourlyRate:0,kitFee:0,kitFeeMode:'flat',status:'estimate'},
@@ -524,8 +523,13 @@ function App() {
         if(remoteBudgets.length){
           const norm=(v:any)=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ');
           const reconciled=remoteBudgets.map(b=>{const linked=locations.find((r:any)=>b.sharedLocationId&&r.id===b.sharedLocationId)||locations.find((r:any)=>norm(r.episode_name||r.episode_id)===norm(b.episode)&&norm(r.set_name)===norm(b.setName))||locations.find((r:any)=>norm(r.episode_name||r.episode_id)===norm(b.episode)&&norm(r.location_name)===norm(b.location));const sc=linked?.metadata?.schedule||{};return{...b,showId:hubShowId,sharedLocationId:linked?.id||b.sharedLocationId,location:linked?.location_name||b.location,setName:linked?.set_name||b.setName,address:linked?.address||b.address,prepStart:sc.prep_start||b.prepStart||'',prepEnd:sc.prep_end||b.prepEnd||'',shootStart:sc.shoot_start||b.shootStart||'',shootEnd:sc.shoot_end||b.shootEnd||'',holdStart:sc.hold_start||b.holdStart||'',holdEnd:sc.hold_end||b.holdEnd||'',strikeStart:sc.strike_start||b.strikeStart||'',strikeEnd:sc.strike_end||b.strikeEnd||'',items:withRequiredTemplate(b.items||[])}});
-          setBudgets(reconciled);
-          const requested=reconciled.find(b=>requestedBudgetId&&b.id===requestedBudgetId)||reconciled.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId);if(requested){setActiveBudgetId(requested.id);setOpenEpisodes(prev=>[...new Set([...prev,budgetEpisodeGroup(requested.episode)])])}
+          // Calendar is the source of truth for which location budgets should exist. Keep existing budgets,
+          // then create a clean draft for any new Calendar location that does not have one yet.
+          const linkedIds=new Set(reconciled.map(b=>b.sharedLocationId).filter(Boolean));
+          const missingDrafts=calendarDrafts.filter(d=>d.sharedLocationId&&!linkedIds.has(d.sharedLocationId));
+          const merged=[...reconciled,...missingDrafts];
+          setBudgets(merged);
+          const requested=merged.find(b=>requestedBudgetId&&b.id===requestedBudgetId)||merged.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId);if(requested){setActiveBudgetId(requested.id);setOpenEpisodes(prev=>[...new Set([...prev,budgetEpisodeGroup(requested.episode)])])}
         }
         else if(calendarDrafts.length){ setBudgets(prev=>{const other=prev.filter(b=>b.showId!==hubShowId); return [...other,...calendarDrafts]});const requested=calendarDrafts.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId);if(requested)setActiveBudgetId(requested.id) }
         if(doc?.payload?.cities) setCities(normalizeCities(doc.payload.cities))

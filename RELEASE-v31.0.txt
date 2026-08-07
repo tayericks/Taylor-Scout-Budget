@@ -1,0 +1,6 @@
+Taylor Budget v31.0 — Manager acceptance fixes
+
+- New Calendar locations automatically receive a new Budget draft even when other remote budgets already exist.
+- Deep links from Bible select the exact matching shared location budget, including newly-created drafts.
+- Removed Security Gaffer from the default budget template.
+- Preserves Final Tracker and all existing v30.9 data behavior.
