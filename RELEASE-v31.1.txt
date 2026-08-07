@@ -1,0 +1,2 @@
+Taylor Budget v31.1 — Vendor invoice defaults
+Adds recent invoice-backed HDR and Air On Location vendor items/rates as zero-quantity future-order defaults. No visual design changes.

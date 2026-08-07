@@ -232,9 +232,26 @@ const templateItems = (): BudgetItem[] => [
   {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'Restrooms',calcType:'vendor',vendor:'',units:0,weeks:1,servicesPerUnit:0,weeklyRate:850,serviceRate:150,flatAmount:0,status:'estimate'},
   {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'Lights',calcType:'flat',flatAmount:0,status:'estimate'},
   {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'Handwashing Stations',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'HDR — 10x10 Pop-Up Tent',calcType:'vendor',vendor:'Hollywood Depot Rentals (HDR)',vendorBillingType:'flat',vendorFlatRate:70,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:"HDR — 10' Tent Side",calcType:'vendor',vendor:'Hollywood Depot Rentals (HDR)',vendorBillingType:'flat',vendorFlatRate:16,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'HDR — Sandbag',calcType:'vendor',vendor:'Hollywood Depot Rentals (HDR)',vendorBillingType:'flat',vendorFlatRate:7,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'HDR — Handwashing Station',calcType:'vendor',vendor:'Hollywood Depot Rentals (HDR)',vendorBillingType:'flat',vendorFlatRate:350,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'HDR — Trash Can, 33 gal',calcType:'vendor',vendor:'Hollywood Depot Rentals (HDR)',vendorBillingType:'flat',vendorFlatRate:5.5,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'HDR — Milwaukee Light',calcType:'vendor',vendor:'Hollywood Depot Rentals (HDR)',vendorBillingType:'flat',vendorFlatRate:60,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'HDR — GloBug Lighting System with Generator',calcType:'vendor',vendor:'Hollywood Depot Rentals (HDR)',vendorBillingType:'flat',vendorFlatRate:330,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'HDR — Fire Extinguisher, Small',calcType:'vendor',vendor:'Hollywood Depot Rentals (HDR)',vendorBillingType:'flat',vendorFlatRate:24,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'HDR — Delivery / Set-Up',calcType:'vendor',vendor:'Hollywood Depot Rentals (HDR)',vendorBillingType:'flat',vendorFlatRate:425,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'equipment-rentals',name:'HDR — Strike Pick-Up',calcType:'vendor',vendor:'Hollywood Depot Rentals (HDR)',vendorBillingType:'flat',vendorFlatRate:425,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
 
   // Heating / AC
   {id:crypto.randomUUID(),sectionId:'heating-ac',name:'Heating / AC Equipment',calcType:'flat',flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'heating-ac',name:'Air On Location — 10x10 Cooling Tent',calcType:'vendor',vendor:'Air on Location, Inc.',vendorBillingType:'flat',vendorFlatRate:100,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'heating-ac',name:'Air On Location — 1.5 Ton AC, 110V',calcType:'vendor',vendor:'Air on Location, Inc.',vendorBillingType:'flat',vendorFlatRate:200,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'heating-ac',name:'Air On Location — 500 Amp Ultra Silent Generator',calcType:'vendor',vendor:'Air on Location, Inc.',vendorBillingType:'flat',vendorFlatRate:450,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'heating-ac',name:'Air On Location — Distro Pack',calcType:'vendor',vendor:'Air on Location, Inc.',vendorBillingType:'flat',vendorFlatRate:400,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'heating-ac',name:'Air On Location — Diesel Fuel (per gallon)',calcType:'vendor',vendor:'Air on Location, Inc.',vendorBillingType:'flat',vendorFlatRate:10,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'heating-ac',name:'Air On Location — AC Delivery / Pick-Up',calcType:'vendor',vendor:'Air on Location, Inc.',vendorBillingType:'flat',vendorFlatRate:400,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
+  {id:crypto.randomUUID(),sectionId:'heating-ac',name:'Air On Location — Generator Delivery / Pick-Up',calcType:'vendor',vendor:'Air on Location, Inc.',vendorBillingType:'flat',vendorFlatRate:300,units:0,weeks:1,servicesPerUnit:0,weeklyRate:0,serviceRate:0,flatAmount:0,status:'estimate'},
   {id:crypto.randomUUID(),sectionId:'heating-ac',name:'AC Techs',calcType:'hourly',people:0,days:1,regHours:8,ot15Hours:4,ot2Hours:0,hourlyRate:0,kitFee:0,kitFeeMode:'flat',status:'estimate'},
 
   // Existing general-purpose vendor defaults retained for compatibility.
@@ -324,6 +341,23 @@ const defaultVendors: VendorItem[] = [
   {id:'air-5',vendor:'Air on Location, Inc.',name:'5 Ton AC',billingType:'weekly',weeklyRate:600,flatRate:500,serviceRate:0,deliveryFee:400,pickupFee:0},
   {id:'air-15',vendor:'Air on Location, Inc.',name:'1.5 Ton AC',billingType:'weekly',weeklyRate:300,flatRate:200,serviceRate:0,deliveryFee:400,pickupFee:0},
   {id:'air-gen',vendor:'Air on Location, Inc.',name:'70 KVA Generator',billingType:'weekly',weeklyRate:1350,flatRate:450,serviceRate:0,deliveryFee:300,pickupFee:0},
+  {id:'air-cooling-tent',vendor:'Air on Location, Inc.',name:'10x10 Cooling Tent',billingType:'flat',weeklyRate:0,flatRate:100,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'air-15-invoice',vendor:'Air on Location, Inc.',name:'1.5 Ton Air Conditioning Unit — 110V',billingType:'flat',weeklyRate:0,flatRate:200,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'air-gen-500',vendor:'Air on Location, Inc.',name:'500 Amp Ultra Silent Generator',billingType:'flat',weeklyRate:0,flatRate:450,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'air-distro',vendor:'Air on Location, Inc.',name:'Distro Pack — Base Camp',billingType:'flat',weeklyRate:0,flatRate:400,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'air-diesel',vendor:'Air on Location, Inc.',name:'Diesel Fuel — per gallon',billingType:'flat',weeklyRate:0,flatRate:10,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'air-ac-delivery-invoice',vendor:'Air on Location, Inc.',name:'AC Delivery / Pick-Up',billingType:'flat',weeklyRate:0,flatRate:400,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'air-generator-delivery-invoice',vendor:'Air on Location, Inc.',name:'Generator Delivery / Pick-Up',billingType:'flat',weeklyRate:0,flatRate:300,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'hdr-tent-10x10',vendor:'Hollywood Depot Rentals (HDR)',name:'10x10 Pop-Up Tent',billingType:'flat',weeklyRate:0,flatRate:70,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'hdr-tent-side-10',vendor:'Hollywood Depot Rentals (HDR)',name:"10' Tent Side",billingType:'flat',weeklyRate:0,flatRate:16,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'hdr-sandbag',vendor:'Hollywood Depot Rentals (HDR)',name:'Sandbag',billingType:'flat',weeklyRate:0,flatRate:7,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'hdr-handwash',vendor:'Hollywood Depot Rentals (HDR)',name:'Handwashing Station',billingType:'flat',weeklyRate:0,flatRate:350,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'hdr-trash-33',vendor:'Hollywood Depot Rentals (HDR)',name:'Trash Can, 33 gal',billingType:'flat',weeklyRate:0,flatRate:5.5,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'hdr-milwaukee-light',vendor:'Hollywood Depot Rentals (HDR)',name:'Milwaukee Light',billingType:'flat',weeklyRate:0,flatRate:60,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'hdr-globug-generator',vendor:'Hollywood Depot Rentals (HDR)',name:'GloBug Lighting System with Generator',billingType:'flat',weeklyRate:0,flatRate:330,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'hdr-fire-small',vendor:'Hollywood Depot Rentals (HDR)',name:'Fire Extinguisher, Small',billingType:'flat',weeklyRate:0,flatRate:24,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'hdr-delivery-setup',vendor:'Hollywood Depot Rentals (HDR)',name:'Delivery / Set-Up',billingType:'flat',weeklyRate:0,flatRate:425,serviceRate:0,deliveryFee:0,pickupFee:0},
+  {id:'hdr-strike-pickup',vendor:'Hollywood Depot Rentals (HDR)',name:'Strike Pick-Up',billingType:'flat',weeklyRate:0,flatRate:425,serviceRate:0,deliveryFee:0,pickupFee:0},
   {id:'lunch-large',vendor:'Lunchbox Transportation, LLC',name:'Large Catering Trailer',billingType:'flat',weeklyRate:0,flatRate:1450,serviceRate:0,deliveryFee:477,pickupFee:477},
   {id:'lunch-small',vendor:'Lunchbox Transportation, LLC',name:'Small Catering Trailer',billingType:'flat',weeklyRate:0,flatRate:1150,serviceRate:0,deliveryFee:392,pickupFee:392},
   {id:'elite-4room',vendor:'Elite Mobile Restrooms',name:'4-room restroom trailer',billingType:'flat',weeklyRate:0,flatRate:1000,serviceRate:175,deliveryFee:0,pickupFee:0},
@@ -351,6 +385,14 @@ const defaultVendors: VendorItem[] = [
   {id:'tent-20x40',vendor:'American Tents',name:'20 × 40 Frame Tent',billingType:'flat',weeklyRate:3290.55,flatRate:2698.13,serviceRate:0,deliveryFee:0,pickupFee:0},
 ]
 const initialItems: BudgetItem[] = templateItems()
+
+function withRequiredVendors(items: VendorItem[]) {
+  const byId = new Map((items || []).map(v => [v.id, v]))
+  const byKey = new Set((items || []).map(v => `${v.vendor}|${v.name}`.toLowerCase()))
+  const missing = defaultVendors.filter(v => !byId.has(v.id) && !byKey.has(`${v.vendor}|${v.name}`.toLowerCase()))
+  return [...(items || []), ...missing]
+}
+
 
 function applyLocationFeeDefaults(items: BudgetItem[], changedId: string, patch: Partial<BudgetItem>) {
   const changed = items.find(i => i.id === changedId)
@@ -454,7 +496,7 @@ function App() {
   })
   const [vendors, setVendors] = useState<VendorItem[]>(() => {
     const saved = localStorage.getItem('tb-vendors') || localStorage.getItem('lbs-vendors')
-    return saved ? JSON.parse(saved) : defaultVendors
+    return saved ? withRequiredVendors(JSON.parse(saved)) : defaultVendors
   })
   const [budgets, setBudgets] = useState<BudgetPage[]>(() => {
     const saved = localStorage.getItem('tb-budgets')
@@ -533,7 +575,7 @@ function App() {
         }
         else if(calendarDrafts.length){ setBudgets(prev=>{const other=prev.filter(b=>b.showId!==hubShowId); return [...other,...calendarDrafts]});const requested=calendarDrafts.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId);if(requested)setActiveBudgetId(requested.id) }
         if(doc?.payload?.cities) setCities(normalizeCities(doc.payload.cities))
-        if(doc?.payload?.vendors) setVendors(doc.payload.vendors)
+        if(doc?.payload?.vendors) setVendors(withRequiredVendors(doc.payload.vendors))
         setBiblePayload(bibleDoc?.payload || null)
         setSyncState('connected'); setSyncMessage('Connected'); setRemoteReady(true)
       } catch(e:any) { if(!cancelled){setSyncState('error');setSyncMessage(e?.message||'Sync error');setRemoteReady(true)} }
