@@ -1,7 +1,7 @@
 {
   "name": "taylor-budget",
   "private": true,
-  "version": "20.3.0",
+  "version": "30.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
