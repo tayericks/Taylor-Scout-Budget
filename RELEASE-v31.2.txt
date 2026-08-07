@@ -1,0 +1,8 @@
+Taylor Budget v31.2 — Item Editor Calculation + Editability Fix
+
+- Fixes Saved Vendor Item calculations so the selected pricing mode is authoritative.
+- Flat vendor items now calculate rental + services + delivery/pickup.
+- Calculation preview now explicitly includes delivery/pickup in its formula text.
+- Numeric edit fields now support normal clear/type/replace editing and decimals without snapping to zero mid-entry.
+- Inline budget-table numeric fields use the same stable editing behavior.
+- No visual shell or print-layout changes.

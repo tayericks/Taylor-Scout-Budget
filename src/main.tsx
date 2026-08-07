@@ -888,7 +888,7 @@ function formulaText(i: BudgetItem) {
   if (i.calcType === 'rateDay') return `${i.days||0} day(s) × ${money(i.dayRate||0)}/day`
   if (i.calcType === 'hourly') return `${i.people||0} people × ${i.days||0} days · ${i.regHours||0} reg / ${i.ot15Hours||0} OT / ${i.ot2Hours||0} DT · ${money(i.hourlyRate||0)}/hr${i.kitFee ? ` + ${money(i.kitFee)} kit` : ''}`
   if (i.calcType === 'dayRate') return `${i.people||0} people × ${i.days||0} days × ${money(i.dayRate||0)} day rate${i.kitFee ? ` + ${money(i.kitFee)} kit` : ''}`
-  return i.vendorBillingType==='flat' ? `${i.units||0} unit(s) × ${money(i.vendorFlatRate||0)} flat + ${i.servicesPerUnit||0} service(s)/unit × ${money(i.serviceRate||0)}` : `${i.units||0} units × ${i.weeks||0} week(s) × ${money(i.weeklyRate||0)} + ${i.servicesPerUnit||0} service(s)/unit × ${money(i.serviceRate||0)}`
+  return i.vendorBillingType==='flat' ? `${i.units||0} unit(s) × ${money(i.vendorFlatRate||0)} + ${i.servicesPerUnit||0} service(s)/unit × ${money(i.serviceRate||0)} + ${money(i.flatAmount||0)} delivery/pickup` : `${i.units||0} units × ${i.weeks||0} week(s) × ${money(i.weeklyRate||0)} + ${i.servicesPerUnit||0} service(s)/unit × ${money(i.serviceRate||0)} + ${money(i.flatAmount||0)} delivery/pickup`
 }
 
 function cellNumber(value?: number) { return value ? String(value) : '' }
@@ -897,7 +897,10 @@ function InlineText({value,onChange,className,ariaLabel}:{value:string,onChange:
   return <input className={`inline-cell-input ${className||''}`} value={value} onClick={e=>e.stopPropagation()} onChange={e=>onChange(e.target.value)} aria-label={ariaLabel}/>
 }
 function InlineNumber({value,onChange,ariaLabel}:{value?:number,onChange:(v:number)=>void,ariaLabel:string}) {
-  return <input className="inline-cell-input number" type="number" value={value ?? ''} onClick={e=>e.stopPropagation()} onChange={e=>onChange(e.target.value===''?0:+e.target.value)} aria-label={ariaLabel}/>
+  const [draft,setDraft]=useState(value == null ? '' : String(value))
+  useEffect(()=>setDraft(value == null ? '' : String(value)),[value])
+  const commit=()=>{ const n=Number(draft); onChange(draft.trim()==='' || !Number.isFinite(n) ? 0 : n) }
+  return <input className="inline-cell-input number" type="number" step="any" value={draft} onClick={e=>e.stopPropagation()} onFocus={e=>e.currentTarget.select()} onChange={e=>setDraft(e.target.value)} onBlur={commit} onKeyDown={e=>{if(e.key==='Enter'){e.currentTarget.blur()}}} aria-label={ariaLabel}/>
 }
 function BudgetTable({sectionId, items, onEdit, onDelete, onDuplicate, onUpdate, showActuals=false}:{sectionId:string,items:BudgetItem[],onEdit:(item:BudgetItem)=>void,onDelete:(id:string)=>void,onDuplicate:(item:BudgetItem)=>void,onUpdate:(id:string,patch:Partial<BudgetItem>)=>void,showActuals?:boolean}) {
   const locationFee = sectionId === 'location-fees'
@@ -952,7 +955,7 @@ function ItemModal({sectionId, sectionName, initialItem, cities, city, vendors, 
     if (key === 'permit') { setName('Film Permit'); setType('flat'); setData({...data, flatAmount:city.permitBaseFee}) }
   }
 
-  const preview: BudgetItem = {id:'preview',sectionId,name:name||'New item',calcType:type,...data,vendor:type==='vendor'?selectedVendor?.vendor:undefined}
+  const preview: BudgetItem = {id:'preview',sectionId,name:name||'New item',...data,calcType:type,vendor:type==='vendor'?selectedVendor?.vendor:undefined}
 
   const submitItem = () => {
     if (!name.trim()) return
@@ -988,7 +991,12 @@ function AddSectionModal({onClose,onSave}:{onClose:()=>void,onSave:(section:Sect
   return <div className="modal-backdrop"><div className="modal"><div className="modal-head"><div><span className="eyebrow">CUSTOM BUDGET SECTION</span><h2>Add a section</h2></div><button className="icon-btn" onClick={onClose}><X/></button></div><div className="form-grid"><label className="span-2">Section name<input autoFocus value={name} onChange={e=>setName(e.target.value)} placeholder="Example: Special Equipment"/></label><label>Account code<input value={account} onChange={e=>setAccount(e.target.value)} placeholder="36-XX"/></label></div><div className="modal-actions"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={!name.trim()} onClick={()=>onSave({id:`custom-${crypto.randomUUID()}`,name:name.trim(),account:account.trim()||'36-99',icon:'file'})}>Add section</button></div></div></div>
 }
 
-function Num({label,value,set}:{label:string,value:number,set:(v:number)=>void}) { return <label>{label}<input type="number" value={value} onChange={e=>set(+e.target.value)}/></label> }
+function Num({label,value,set}:{label:string,value:number,set:(v:number)=>void}) {
+  const [draft,setDraft]=useState(value == null ? '' : String(value))
+  useEffect(()=>setDraft(value == null ? '' : String(value)),[value])
+  const commit=()=>{ const n=Number(draft); set(draft.trim()==='' || !Number.isFinite(n) ? 0 : n) }
+  return <label>{label}<input type="number" step="any" value={draft} onFocus={e=>e.currentTarget.select()} onChange={e=>setDraft(e.target.value)} onBlur={commit} onKeyDown={e=>{if(e.key==='Enter'){e.currentTarget.blur()}}}/></label>
+}
 
 function LibraryModal({title,onClose,children}:{title:string,onClose:()=>void,children:React.ReactNode}) { return <div className="modal-backdrop"><div className="modal library"><div className="modal-head"><h2>{title}</h2><button className="icon-btn" onClick={onClose}><X/></button></div>{children}</div></div> }
 
