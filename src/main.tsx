@@ -858,5 +858,3 @@ function VendorLibrary({vendors,setVendors}:{vendors:VendorItem[],setVendors:(v:
 }
 
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>)
-
-
