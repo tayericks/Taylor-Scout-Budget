@@ -536,7 +536,6 @@ function App() {
         <button className="suite-global-brand" onClick={()=>window.location.href='https://www.taylorscout.com'}><span className="suite-logo-tile"><TaylorScoutLogo compact/></span><span><b>TAYLOR SCOUT</b><small>PRODUCTION TOOLS</small></span></button>
         <strong>{activeShow.name}</strong>
         <div className="suite-global-tools">
-          <span className={`suite-global-sync ${syncState}`}>{syncState==='connected'?'Connected':syncMessage}</span>
           <div className="tool-switcher" aria-label="Connected tools"><button className="tool-tab" onClick={()=>window.location.href=calendarUrl}>Calendar</button><button className="tool-tab active" aria-current="page">Budget</button><button className="tool-tab" onClick={()=>window.location.href=bibleUrl}>Bible</button></div>
         </div>
       </header>
@@ -558,7 +557,7 @@ function App() {
         </div>
         <nav className="library-nav">
           <button className="nav-item" onClick={() => setActiveModal('city')}><ClipboardList size={18}/> City Rate Library</button>
-          <button className="nav-item" onClick={() => setActiveModal('vendor')}><Warehouse size={18}/> Vendor Library</button><button className="nav-item" onClick={() => setActiveModal('connections')}><Link2 size={18}/> Calendar / Bible Connections</button>
+          <button className="nav-item" onClick={() => setActiveModal('vendor')}><Warehouse size={18}/> Vendor Library</button>
         </nav>
         <div className="sidebar-footer">{syncMessage}</div>
       </aside>
@@ -570,7 +569,7 @@ function App() {
             <button className="secondary" onClick={() => setActiveModal('copyBudget')}><Copy size={17}/> Duplicate Budget</button>
             <div className="print-dropdown"><button className="secondary print-trigger" onClick={()=>setPrintMenuOpen(!printMenuOpen)}><Printer size={16}/> Print <ChevronDown size={15}/></button>{printMenuOpen&&<div className="print-menu"><button onClick={()=>{setPrintOrientation('landscape');setPrintMenuOpen(false);window.setTimeout(printBudget,80)}}><FileText size={16}/><span><b>Landscape</b><small>Print this budget landscape</small></span></button><button onClick={()=>{setPrintMenuOpen(false);printBudget()}}><Printer size={16}/><span><b>Set</b><small>Print the current set budget</small></span></button><button onClick={()=>{setPrintMenuOpen(false);setActiveModal('printSelection')}}><Copy size={16}/><span><b>Episode / Sets</b><small>Choose multiple set budgets</small></span></button></div>}</div>
             <button className={`secondary actuals-toggle ${showActuals?'active':''}`} onClick={()=>setShowActuals(v=>!v)}><ClipboardList size={17}/>{showActuals?'Hide Actuals':'Show Actuals'}</button><button className="secondary" onClick={()=>setOpenSections(openSections.length===sections.length?[]:sections.map(s=>s.id))}>{openSections.length===sections.length?<><ChevronsUp size={17}/> Collapse All</>:<><ChevronsDown size={17}/> Expand All</>}</button>
-            <button className="secondary" onClick={() => setActiveModal('connections')}><Link2 size={17}/> Connections</button><button className="primary" onClick={() => startAddItem('unexpected')}><Plus size={17}/> Add Cost</button><button className="danger-button delete-budget-button" onClick={deleteCurrentBudget}><Trash2 size={17}/> Delete Budget</button>
+<button className="primary" onClick={() => startAddItem('unexpected')}><Plus size={17}/> Add Cost</button><button className="danger-button delete-budget-button" onClick={deleteCurrentBudget}><Trash2 size={17}/> Delete Budget</button>
           </div>
         </header>
 
