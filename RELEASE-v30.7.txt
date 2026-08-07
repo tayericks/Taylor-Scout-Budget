@@ -1,0 +1,4 @@
+Taylor Budget v30.7
+- Fixed budget title contrast/readability.
+- Updated Los Angeles City default FilmLA rates to Apr 1, 2026 published schedule.
+- Added detailed official LA City / FilmLA fee catalog to City Rate Library.

@@ -46,6 +46,8 @@ type BudgetItem = {
 
 type Section = { id: string; name: string; icon: string; account: string }
 
+type CityFee = { name:string; rate:string; per:string; source?:string }
+
 type CityProfile = {
   id: string
   city: string
@@ -56,6 +58,8 @@ type CityProfile = {
   officerMinimumHours: number
   permitBaseFee: number
   parkingPostingFee: number
+  officialFees?: CityFee[]
+  officialFeesPublished?: string
 }
 
 type VendorItem = {
@@ -205,11 +209,59 @@ function withRequiredTemplate(items: BudgetItem[]) {
   return [...normalized, ...required.filter(i => !keys.has(`${i.sectionId}|${i.name.toLowerCase()}`))]
 }
 
+const FILMLA_LA_CITY_FEES: CityFee[] = [
+  {name:'Permit Application Fee — up to 5 locations / 7 consecutive days',rate:'$931',per:'Permit'},
+  {name:'Permit Rider — business hours',rate:'$148.75',per:'Rider'},
+  {name:'Permit Rider — after business hours',rate:'$208',per:'Rider'},
+  {name:'Still Photo Application Fee',rate:'$104',per:'Permit'},
+  {name:'Still Photo Rider Fee',rate:'$31',per:'Rider'},
+  {name:'Student Permit Fee — simple',rate:'$52',per:'Permit'},
+  {name:'Student Permit Fee — complex',rate:'$134',per:'Permit'},
+  {name:'Non-Profit (PSA) Permit Application',rate:'$73',per:'Permit'},
+  {name:'Non-Profit (PSA) Permit Rider',rate:'$36',per:'Permit'},
+  {name:'Notification Fee — base radius',rate:'$232',per:'Radius'},
+  {name:'Lane Closure Administration Fee',rate:'$78',per:'Involved location'},
+  {name:'Gunfire Administration Fee',rate:'$78',per:'Involved location'},
+  {name:'Special FX — explosion & smoke administration',rate:'$78',per:'Involved location'},
+  {name:'Drone Administration Fee',rate:'$78',per:'Involved location'},
+  {name:'Helicopter Administration Fee',rate:'$78',per:'Involved location'},
+  {name:'FilmLA Monitor',rate:'$44.50',per:'Hour · minimum/OT/DT may apply'},
+  {name:'LAFD Spot Check Surcharge',rate:'$287',per:'Permit'},
+  {name:'LAFD Fire Safety Officer',rate:'$127',per:'Hour · 4 hr minimum + 1 hr travel'},
+  {name:'LA City Lane & Street Closure',rate:'$312',per:'Involved location'},
+  {name:'LA City Posting Fee',rate:'$69',per:"300' linear curbside space"},
+  {name:'LAPD Retired / Off Duty Officer',rate:'$67.19–$77.90',per:'Hour · 8 hr minimum · OT after 8 · DT after 12'},
+  {name:'LAPD Motorcycle Fee',rate:'$75',per:'Day'},
+  {name:'LAPD Active Duty Officer',rate:'$74',per:'Hour · 2–4 hr minimum · flat rate'},
+  {name:'Rec & Parks — Film Use',rate:'$450',per:'Day'},
+  {name:'Rec & Parks — Still Photo Use 1–14 people',rate:'$75',per:'Day'},
+  {name:'Rec & Parks — Still Photo Use 15+ people',rate:'$150',per:'Day'},
+  {name:'Rec & Parks — Prep / Strike',rate:'$150',per:'Day'},
+  {name:'Rec & Parks — Basecamp Only',rate:'$450',per:'Day'},
+  {name:'Rec & Parks — Crew Parking 1–15 cars',rate:'$100',per:'Day'},
+  {name:'Rec & Parks — Crew Parking 16+ cars',rate:'$300',per:'Day'},
+  {name:'Rec & Parks — Catering 1–74 people',rate:'$225',per:'Day'},
+  {name:'Rec & Parks — Catering 75+ people',rate:'$450',per:'Day'},
+  {name:'Rec & Parks — Special Facility Service',rate:'$150',per:'Day'},
+  {name:'Rec & Parks — Monitor',rate:'$38',per:'Hour'},
+  {name:'Rec & Parks — Monitor Reporting',rate:'$76',per:'Monitor shift'},
+  {name:'DWP Facility Film Use',rate:'$800–$2,000',per:'Day'},
+  {name:'DWP Facility Still Photo Use',rate:'$500',per:'Day'},
+  {name:'DWP Facility Monitor',rate:'$50–$70',per:'Hour'},
+  {name:'Port of Los Angeles — Use',rate:'$300',per:'Day'},
+  {name:'Port of Los Angeles — Prep / Strike',rate:'$100',per:'Day'},
+  {name:'Port of Los Angeles — Base Camp Only',rate:'$300',per:'Day'},
+  {name:'Port of Los Angeles — Crew Parking Only',rate:'$150',per:'Day'},
+  {name:'Port of Los Angeles — Police Officer',rate:'$112',per:'Hour'},
+]
+
+const normalizeCities = (input:CityProfile[]) => input.map(c => c.id==='la-city' || (c.city==='Los Angeles' && c.state==='CA') ? ({...c,fireOfficerRate:127,policeOfficerRate:77.90,policeSupervisorRate:77.90,officerMinimumHours:8,permitBaseFee:931,parkingPostingFee:69,officialFees:FILMLA_LA_CITY_FEES,officialFeesPublished:'FilmLA · Apr 1, 2026'}) : c)
+
 const defaultCities: CityProfile[] = [
   {
-    id: 'la-city', city: 'Los Angeles', state: 'CA', fireOfficerRate: 118,
-    policeOfficerRate: 64.26, policeSupervisorRate: 72.5,
-    officerMinimumHours: 8, permitBaseFee: 1500, parkingPostingFee: 3000,
+    id: 'la-city', city: 'Los Angeles', state: 'CA', fireOfficerRate: 127,
+    policeOfficerRate: 77.90, policeSupervisorRate: 77.90,
+    officerMinimumHours: 8, permitBaseFee: 931, parkingPostingFee: 69, officialFees:FILMLA_LA_CITY_FEES, officialFeesPublished:'FilmLA · Apr 1, 2026',
   },
   {
     id: 'burbank', city: 'Burbank', state: 'CA', fireOfficerRate: 112,
@@ -349,7 +401,7 @@ function App() {
   const [editingShow, setEditingShow] = useState<ShowProfile | null>(null)
   const [cities, setCities] = useState<CityProfile[]>(() => {
     const saved = localStorage.getItem('tb-cities') || localStorage.getItem('lbs-cities')
-    return saved ? JSON.parse(saved) : defaultCities
+    return saved ? normalizeCities(JSON.parse(saved)) : defaultCities
   })
   const [vendors, setVendors] = useState<VendorItem[]>(() => {
     const saved = localStorage.getItem('tb-vendors') || localStorage.getItem('lbs-vendors')
@@ -419,7 +471,7 @@ function App() {
         }))
         if(remoteBudgets.length){ setBudgets(remoteBudgets.map(b=>({...b,showId:hubShowId,items:withRequiredTemplate(b.items||[])}))) }
         else if(calendarDrafts.length){ setBudgets(prev=>{const other=prev.filter(b=>b.showId!==hubShowId); return [...other,...calendarDrafts]}) }
-        if(doc?.payload?.cities) setCities(doc.payload.cities)
+        if(doc?.payload?.cities) setCities(normalizeCities(doc.payload.cities))
         if(doc?.payload?.vendors) setVendors(doc.payload.vendors)
         setBiblePayload(bibleDoc?.payload || null)
         setSyncState('connected'); setSyncMessage('Connected'); setRemoteReady(true)
@@ -840,7 +892,7 @@ function LibraryModal({title,onClose,children}:{title:string,onClose:()=>void,ch
 function CityLibrary({cities,setCities}:{cities:CityProfile[],setCities:(c:CityProfile[])=>void}) {
   const add = () => setCities([...cities,{id:crypto.randomUUID(),city:'New City',state:'CA',fireOfficerRate:0,policeOfficerRate:0,policeSupervisorRate:0,officerMinimumHours:4,permitBaseFee:0,parkingPostingFee:0}])
   const patch = (idx:number, changes:Partial<CityProfile>) => setCities(cities.map((x,i)=>i===idx?{...x,...changes}:x))
-  return <div><p className="library-help">Edit the city name, state, and default agency fees here. Budgets using this city will use the updated profile for new city-rate items.</p><div className="library-grid">{cities.map((c,idx)=><div className="library-card" key={c.id}><div className="library-card-head city-title-row"><input className="title-input" value={c.city} onChange={e=>patch(idx,{city:e.target.value})}/><input className="state-input" value={c.state} maxLength={2} onChange={e=>patch(idx,{state:e.target.value.toUpperCase()})} aria-label="State abbreviation"/><button className="icon-btn" onClick={()=>setCities(cities.filter(x=>x.id!==c.id))}><Trash2 size={15}/></button></div><div className="mini-grid"><Num label="Police officer / hr" value={c.policeOfficerRate} set={v=>patch(idx,{policeOfficerRate:v})}/><Num label="Police supervisor / hr" value={c.policeSupervisorRate} set={v=>patch(idx,{policeSupervisorRate:v})}/><Num label="Fire officer / hr" value={c.fireOfficerRate} set={v=>patch(idx,{fireOfficerRate:v})}/><Num label="Minimum call hours" value={c.officerMinimumHours} set={v=>patch(idx,{officerMinimumHours:v})}/><Num label="Base permit fee" value={c.permitBaseFee} set={v=>patch(idx,{permitBaseFee:v})}/><Num label="Parking posting fee" value={c.parkingPostingFee} set={v=>patch(idx,{parkingPostingFee:v})}/></div></div>)}</div><button className="add-row" onClick={add}><Plus size={16}/> Add city profile</button></div>
+  return <div><p className="library-help">Edit city defaults here. Los Angeles official fees below are synchronized to the FilmLA schedule published Apr 1, 2026; provider fees remain subject to change.</p><div className="library-grid">{cities.map((c,idx)=><div className="library-card" key={c.id}><div className="library-card-head city-title-row"><input className="title-input" value={c.city} onChange={e=>patch(idx,{city:e.target.value})}/><input className="state-input" value={c.state} maxLength={2} onChange={e=>patch(idx,{state:e.target.value.toUpperCase()})} aria-label="State abbreviation"/><button className="icon-btn" onClick={()=>setCities(cities.filter(x=>x.id!==c.id))}><Trash2 size={15}/></button></div><div className="mini-grid"><Num label="Police officer / hr (planning default)" value={c.policeOfficerRate} set={v=>patch(idx,{policeOfficerRate:v})}/><Num label="Police supervisor / hr" value={c.policeSupervisorRate} set={v=>patch(idx,{policeSupervisorRate:v})}/><Num label="Fire officer / hr" value={c.fireOfficerRate} set={v=>patch(idx,{fireOfficerRate:v})}/><Num label="Minimum call hours" value={c.officerMinimumHours} set={v=>patch(idx,{officerMinimumHours:v})}/><Num label="Base permit fee" value={c.permitBaseFee} set={v=>patch(idx,{permitBaseFee:v})}/><Num label="Parking posting / 300 ft" value={c.parkingPostingFee} set={v=>patch(idx,{parkingPostingFee:v})}/></div>{c.officialFees?.length?<div className="official-fees"><div className="official-fees-head"><strong>Official LA City / FilmLA fee schedule</strong><span>{c.officialFeesPublished}</span></div>{c.officialFees.map((f,i)=><div className="official-fee-row" key={i}><span>{f.name}</span><b>{f.rate}</b><small>{f.per}</small></div>)}</div>:null}</div>)}</div><button className="add-row" onClick={add}><Plus size={16}/> Add city profile</button></div>
 }
 
 
