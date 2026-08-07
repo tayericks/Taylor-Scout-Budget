@@ -540,7 +540,7 @@ function App() {
         </div>
       </header>
       <aside className="sidebar no-print">
-        <button className="brand scout-brand brand-home" onClick={()=>window.location.href='https://www.taylorscout.com'}><TaylorScoutLogo/><span className="tool-label">BUDGET · {activeShow.name}</span></button>
+        <div className="canonical-side-show"><strong>{activeShow.name}</strong><small>BUDGETS</small></div>
         <button className="show-switcher" onClick={()=>window.location.href='https://www.taylorscout.com'}><Home size={15}/> Show Dashboard</button><button className="show-switcher" onClick={()=>setAppView('home')}><ArrowLeft size={15}/> All Budgets</button>
         <button className="show-switcher" onClick={()=>{setEditingShow(activeShow);setAppView('setup')}}><Settings size={15}/> Show Settings</button>
         <button className="new-budget-btn" onClick={() => setActiveModal('newBudget')}><Plus size={17}/> New Budget</button>
