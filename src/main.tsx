@@ -439,6 +439,8 @@ const iconMap: Record<string, React.ReactNode> = {
 function App() {
   const hubShowId = useMemo(() => getShowId(), [])
   const hubShowName = useMemo(() => getShowName(), [])
+  const requestedBudgetId = useMemo(() => new URLSearchParams(window.location.search).get('budgetId') || '', [])
+  const requestedLocationId = useMemo(() => new URLSearchParams(window.location.search).get('locationId') || '', [])
   const [shows, setShows] = useState<ShowProfile[]>(() => {
     const saved = localStorage.getItem('tb-shows')
     if (saved) return JSON.parse(saved)
@@ -466,7 +468,7 @@ function App() {
       items: legacyItems ? JSON.parse(legacyItems) : initialItems,
     }]
   })
-  const [activeBudgetId, setActiveBudgetId] = useState(() => budgets[0]?.id || '')
+  const [activeBudgetId, setActiveBudgetId] = useState(() => requestedBudgetId || budgets.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId)?.id || budgets[0]?.id || '')
   const [openEpisodes, setOpenEpisodes] = useState<string[]>(() => budgets[0] ? [budgetEpisodeGroup(budgets[0].episode)] : [])
   const [openSections, setOpenSections] = useState<string[]>(['location-fees', 'staffing', 'vendors'])
   const [activeModal, setActiveModal] = useState<'item' | 'city' | 'vendor' | 'newBudget' | 'copyBudget' | 'addSection' | 'printSelection' | 'connections' | null>(null)
@@ -479,6 +481,8 @@ function App() {
   const [printBudgetIds, setPrintBudgetIds] = useState<string[]>([])
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const [showActuals, setShowActuals] = useState(false)
+  const [finalTracker, setFinalTracker] = useState(() => localStorage.getItem('tb-final-tracker') === '1')
+  useEffect(()=>{localStorage.setItem('tb-final-tracker', finalTracker?'1':'0'); if(finalTracker) setShowActuals(true)},[finalTracker])
   const [printOrientation, setPrintOrientation] = useState<'portrait'|'landscape'>(() => (localStorage.getItem('tb-print-orientation') as 'portrait'|'landscape') || 'landscape')
   const [printMenuOpen, setPrintMenuOpen] = useState(false)
   const [biblePayload, setBiblePayload] = useState<any>(null)
@@ -517,8 +521,13 @@ function App() {
         const calendarDrafts:BudgetPage[] = locations.filter((r:any)=>r.source==='calendar').map((r:any)=>({
           id:`calendar-${r.id}`,showId:hubShowId,episode:r.episode_name||r.episode_id||'Episode',production:hubShowName||'EL DORADO',setName:r.set_name||'New Set',setNumber:r.metadata?.scenes||'',scenes:r.metadata?.scenes||'',location:r.location_name||'',version:'Budget V1',cityId:'la-city',contingency:10000,keyAssistantLocationManager:Array.isArray(r.metadata?.key_ids)?r.metadata.key_ids.join(', '):'',address:r.address||'',contact:r.contact_name||'',phone:r.contact_phone||'',sharedLocationId:r.id,calendarAssignmentIds:[r.metadata?.calendar_event_id].filter(Boolean),prepStart:r.metadata?.schedule?.prep_start||'',prepEnd:r.metadata?.schedule?.prep_end||'',shootStart:r.metadata?.schedule?.shoot_start||'',shootEnd:r.metadata?.schedule?.shoot_end||'',holdStart:r.metadata?.schedule?.hold_start||'',holdEnd:r.metadata?.schedule?.hold_end||'',strikeStart:r.metadata?.schedule?.strike_start||'',strikeEnd:r.metadata?.schedule?.strike_end||'',items:templateItems(),customSections:[],sectionOverrides:{}
         }))
-        if(remoteBudgets.length){ setBudgets(remoteBudgets.map(b=>({...b,showId:hubShowId,items:withRequiredTemplate(b.items||[])}))) }
-        else if(calendarDrafts.length){ setBudgets(prev=>{const other=prev.filter(b=>b.showId!==hubShowId); return [...other,...calendarDrafts]}) }
+        if(remoteBudgets.length){
+          const norm=(v:any)=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ');
+          const reconciled=remoteBudgets.map(b=>{const linked=locations.find((r:any)=>b.sharedLocationId&&r.id===b.sharedLocationId)||locations.find((r:any)=>norm(r.episode_name||r.episode_id)===norm(b.episode)&&norm(r.set_name)===norm(b.setName))||locations.find((r:any)=>norm(r.episode_name||r.episode_id)===norm(b.episode)&&norm(r.location_name)===norm(b.location));const sc=linked?.metadata?.schedule||{};return{...b,showId:hubShowId,sharedLocationId:linked?.id||b.sharedLocationId,location:linked?.location_name||b.location,setName:linked?.set_name||b.setName,address:linked?.address||b.address,prepStart:sc.prep_start||b.prepStart||'',prepEnd:sc.prep_end||b.prepEnd||'',shootStart:sc.shoot_start||b.shootStart||'',shootEnd:sc.shoot_end||b.shootEnd||'',holdStart:sc.hold_start||b.holdStart||'',holdEnd:sc.hold_end||b.holdEnd||'',strikeStart:sc.strike_start||b.strikeStart||'',strikeEnd:sc.strike_end||b.strikeEnd||'',items:withRequiredTemplate(b.items||[])}});
+          setBudgets(reconciled);
+          const requested=reconciled.find(b=>requestedBudgetId&&b.id===requestedBudgetId)||reconciled.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId);if(requested){setActiveBudgetId(requested.id);setOpenEpisodes(prev=>[...new Set([...prev,budgetEpisodeGroup(requested.episode)])])}
+        }
+        else if(calendarDrafts.length){ setBudgets(prev=>{const other=prev.filter(b=>b.showId!==hubShowId); return [...other,...calendarDrafts]});const requested=calendarDrafts.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId);if(requested)setActiveBudgetId(requested.id) }
         if(doc?.payload?.cities) setCities(normalizeCities(doc.payload.cities))
         if(doc?.payload?.vendors) setVendors(doc.payload.vendors)
         setBiblePayload(bibleDoc?.payload || null)
@@ -668,7 +677,7 @@ function App() {
           <div className="top-actions"><button className="secondary" onClick={()=>window.location.href='https://www.taylorscout.com'}><Home size={17}/> Home</button><button className="save-budget-btn" onClick={saveNow} disabled={saveState==='saving'} aria-busy={saveState==='saving'}>Save Budget</button>
             <button className="secondary" onClick={() => setActiveModal('copyBudget')}><Copy size={17}/> Duplicate Budget</button>
             <div className="print-dropdown"><button className="secondary print-trigger" onClick={()=>setPrintMenuOpen(!printMenuOpen)}><Printer size={16}/> Print <ChevronDown size={15}/></button>{printMenuOpen&&<div className="print-menu"><button onClick={()=>{setPrintOrientation('landscape');setPrintMenuOpen(false);window.setTimeout(printBudget,80)}}><FileText size={16}/><span><b>Landscape</b><small>Print this budget landscape</small></span></button><button onClick={()=>{setPrintMenuOpen(false);printBudget()}}><Printer size={16}/><span><b>Set</b><small>Print the current set budget</small></span></button><button onClick={()=>{setPrintMenuOpen(false);setActiveModal('printSelection')}}><Copy size={16}/><span><b>Episode / Sets</b><small>Choose multiple set budgets</small></span></button></div>}</div>
-            <button className={`secondary actuals-toggle ${showActuals?'active':''}`} onClick={()=>setShowActuals(v=>!v)}><ClipboardList size={17}/>{showActuals?'Hide Actuals':'Show Actuals'}</button><button className="secondary" onClick={()=>setOpenSections(openSections.length===sections.length?[]:sections.map(s=>s.id))}>{openSections.length===sections.length?<><ChevronsUp size={17}/> Collapse All</>:<><ChevronsDown size={17}/> Expand All</>}</button>
+            <button className={`secondary actuals-toggle ${finalTracker?'active':''}`} onClick={()=>setFinalTracker(v=>!v)}><ClipboardList size={17}/>{finalTracker?'Exit Final Tracker':'Final Tracker'}</button><button className={`secondary actuals-toggle ${showActuals?'active':''}`} onClick={()=>setShowActuals(v=>!v)}><ClipboardList size={17}/>{showActuals?'Hide Actuals':'Show Actuals'}</button><button className="secondary" onClick={()=>setOpenSections(openSections.length===sections.length?[]:sections.map(s=>s.id))}>{openSections.length===sections.length?<><ChevronsUp size={17}/> Collapse All</>:<><ChevronsDown size={17}/> Expand All</>}</button>
 <button className="primary" onClick={() => startAddItem('unexpected')}><Plus size={17}/> Add Cost</button><button className="danger-button delete-budget-button" onClick={deleteCurrentBudget}><Trash2 size={17}/> Delete Budget</button>
           </div>
         </header>
