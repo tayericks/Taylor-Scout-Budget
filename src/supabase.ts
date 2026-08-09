@@ -19,14 +19,15 @@ const normalize = (v:any) => String(v||'').trim().toLowerCase().replace(/[^a-z0-
 const latestOf = (values:any[]) => { const sorted=values.filter(Boolean).sort(); return sorted.length?sorted[sorted.length-1]:undefined }
 
 async function allBudgetRows(showId:string){
-  if(!supabase)return {legacy:null,scoped:[],meta:null}
-  const [{data:legacy,error:legacyError},{data:scoped,error:scopedError},{data:meta,error:metaError}] = await Promise.all([
+  if(!supabase)return {legacy:null,scoped:[],meta:null,tombstones:[]}
+  const [{data:legacy,error:legacyError},{data:scoped,error:scopedError},{data:meta,error:metaError},{data:tombstones,error:tombError}] = await Promise.all([
     supabase.from('tool_documents').select('tool_key,payload,updated_at').eq('show_id',showId).eq('tool_key','budget').maybeSingle(),
     supabase.from('tool_documents').select('tool_key,payload,updated_at').eq('show_id',showId).like('tool_key','budget-location:%'),
     supabase.from('tool_documents').select('tool_key,payload,updated_at').eq('show_id',showId).eq('tool_key','budget-meta').maybeSingle(),
+    supabase.from('tool_documents').select('tool_key').eq('show_id',showId).like('tool_key','location-tombstone:%'),
   ])
-  if(legacyError)throw legacyError;if(scopedError)throw scopedError;if(metaError)throw metaError
-  return {legacy,scoped:scoped||[],meta}
+  if(legacyError)throw legacyError;if(scopedError)throw scopedError;if(metaError)throw metaError;if(tombError)throw tombError
+  return {legacy,scoped:scoped||[],meta,tombstones:tombstones||[]}
 }
 
 async function lifecycleState(showId:string,locationId:string){
@@ -63,25 +64,30 @@ async function ensureLocationId(showId:string,budget:any){
 
 export async function loadBibleDocument(showId:string){
   if(!supabase)return null
-  const [{data:legacy,error:legacyError},{data:scoped,error:scopedError}] = await Promise.all([
+  const [{data:legacy,error:legacyError},{data:scoped,error:scopedError},{data:locationTombstones,error:locationTombError}] = await Promise.all([
     supabase.from('tool_documents').select('payload,updated_at').eq('show_id',showId).eq('tool_key','bible').maybeSingle(),
     supabase.from('tool_documents').select('tool_key,payload,updated_at').eq('show_id',showId).like('tool_key','bible-location:%'),
+    supabase.from('tool_documents').select('tool_key').eq('show_id',showId).like('tool_key','location-tombstone:%'),
   ])
-  if(legacyError)throw legacyError;if(scopedError)throw scopedError
+  if(legacyError)throw legacyError;if(scopedError)throw scopedError;if(locationTombError)throw locationTombError
   if(!scoped?.length)return legacy
-  const bibles:any = {...(legacy?.payload?.bibles||{})}; const commitments:any = {}
-  for(const row of scoped){const record=row.payload?.record||row.payload;if(!record)continue;const id=record.id||record.bibleId||row.tool_key.slice('bible-location:'.length);bibles[id]=record;Object.assign(commitments,record.commitments||{})}
+  const deleted=new Set((locationTombstones||[]).map((x:any)=>x.tool_key.slice('location-tombstone:'.length)))
+  const bibles:any = {}; const commitments:any = {}
+  for(const [id,record] of Object.entries(legacy?.payload?.bibles||{})){const r:any=record;if(!deleted.has(r?.locationId||r?.location?.id))bibles[id]=r}
+  for(const row of scoped){const locationId=row.tool_key.slice('bible-location:'.length);if(deleted.has(locationId))continue;const record=row.payload?.record||row.payload;if(!record)continue;const id=record.id||record.bibleId||locationId;bibles[id]=record;Object.assign(commitments,record.commitments||{})}
   return {payload:{...(legacy?.payload||{}),bibles,commitments},updated_at:latestOf(scoped.map((r:any)=>r.updated_at))||legacy?.updated_at}
 }
 
 export async function loadBudgetDocument(showId:string){
   if(!supabase)return null
   const rows:any=await allBudgetRows(showId)
+  const deletedIds=new Set<string>((rows.tombstones||[]).map((x:any)=>x.tool_key.slice('location-tombstone:'.length)))
   let legacyBudgets:any[] = Array.isArray(rows.legacy?.payload?.budgets)?rows.legacy.payload.budgets:[]
   legacyBudgets=await resolveLegacyBudgetIds(showId,legacyBudgets)
+  legacyBudgets=legacyBudgets.filter(b=>!b.sharedLocationId||!deletedIds.has(b.sharedLocationId))
   const byLocation=new Map<string,any>()
   for(const b of legacyBudgets){if(b.sharedLocationId)byLocation.set(b.sharedLocationId,b)}
-  for(const row of rows.scoped){const locationId=row.tool_key.slice('budget-location:'.length);const budget={...(row.payload?.budget||row.payload),sharedLocationId:locationId,__remoteUpdatedAt:row.updated_at};byLocation.set(locationId,budget);budgetTokens.set(tokenFor(showId,locationId),row.updated_at)}
+  for(const row of rows.scoped){const locationId=row.tool_key.slice('budget-location:'.length);if(deletedIds.has(locationId))continue;const budget={...(row.payload?.budget||row.payload),sharedLocationId:locationId,__remoteUpdatedAt:row.updated_at};byLocation.set(locationId,budget);budgetTokens.set(tokenFor(showId,locationId),row.updated_at)}
   const migrated=legacyBudgets.filter(b=>b.sharedLocationId&&!rows.scoped.some((r:any)=>r.tool_key===keyFor(b.sharedLocationId)))
   for(const budget of migrated){const locationId=budget.sharedLocationId;const state=await lifecycleState(showId,locationId);if(state.deleted||!state.location)continue;const {data,error}=await supabase.from('tool_documents').upsert({show_id:showId,tool_key:keyFor(locationId),payload:{version:2,locationId,budget:cleanBudget(budget),migratedFrom:'budget'}},{onConflict:'show_id,tool_key'}).select('updated_at').single();if(error)throw error;budgetTokens.set(tokenFor(showId,locationId),data.updated_at);byLocation.set(locationId,{...budget,__remoteUpdatedAt:data.updated_at})}
   const unlinked=legacyBudgets.filter(b=>!b.sharedLocationId)
