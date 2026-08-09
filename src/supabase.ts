@@ -10,6 +10,8 @@ export async function getSession(){ if(!supabase)return null; const {data,error}
 
 const budgetTokens = new Map<string,string>()
 const keyFor = (locationId:string) => `budget-location:${locationId}`
+const bibleKey = (locationId:string) => `bible-location:${locationId}`
+const tombstoneKey = (locationId:string) => `location-tombstone:${locationId}`
 const tokenFor = (showId:string,locationId:string) => `${showId}:${locationId}`
 const same = (a:any,b:any) => JSON.stringify(a)===JSON.stringify(b)
 const cleanBudget = (budget:any) => { const {__remoteUpdatedAt,...rest}=budget||{}; return rest }
@@ -25,6 +27,16 @@ async function allBudgetRows(showId:string){
   ])
   if(legacyError)throw legacyError;if(scopedError)throw scopedError;if(metaError)throw metaError
   return {legacy,scoped:scoped||[],meta}
+}
+
+async function lifecycleState(showId:string,locationId:string){
+  if(!supabase)return {location:null,deleted:false}
+  const [{data:location,error:locationError},{data:tombstone,error:tombError}] = await Promise.all([
+    supabase.from('production_locations').select('id,metadata,status').eq('show_id',showId).eq('id',locationId).maybeSingle(),
+    supabase.from('tool_documents').select('tool_key').eq('show_id',showId).eq('tool_key',tombstoneKey(locationId)).maybeSingle(),
+  ])
+  if(locationError)throw locationError;if(tombError)throw tombError
+  return {location,deleted:Boolean(tombstone)}
 }
 
 async function resolveLegacyBudgetIds(showId:string,budgets:any[]){
@@ -71,7 +83,7 @@ export async function loadBudgetDocument(showId:string){
   for(const b of legacyBudgets){if(b.sharedLocationId)byLocation.set(b.sharedLocationId,b)}
   for(const row of rows.scoped){const locationId=row.tool_key.slice('budget-location:'.length);const budget={...(row.payload?.budget||row.payload),sharedLocationId:locationId,__remoteUpdatedAt:row.updated_at};byLocation.set(locationId,budget);budgetTokens.set(tokenFor(showId,locationId),row.updated_at)}
   const migrated=legacyBudgets.filter(b=>b.sharedLocationId&&!rows.scoped.some((r:any)=>r.tool_key===keyFor(b.sharedLocationId)))
-  for(const budget of migrated){const locationId=budget.sharedLocationId;const {data,error}=await supabase.from('tool_documents').upsert({show_id:showId,tool_key:keyFor(locationId),payload:{version:2,locationId,budget:cleanBudget(budget),migratedFrom:'budget'}},{onConflict:'show_id,tool_key'}).select('updated_at').single();if(error)throw error;budgetTokens.set(tokenFor(showId,locationId),data.updated_at);byLocation.set(locationId,{...budget,__remoteUpdatedAt:data.updated_at})}
+  for(const budget of migrated){const locationId=budget.sharedLocationId;const state=await lifecycleState(showId,locationId);if(state.deleted||!state.location)continue;const {data,error}=await supabase.from('tool_documents').upsert({show_id:showId,tool_key:keyFor(locationId),payload:{version:2,locationId,budget:cleanBudget(budget),migratedFrom:'budget'}},{onConflict:'show_id,tool_key'}).select('updated_at').single();if(error)throw error;budgetTokens.set(tokenFor(showId,locationId),data.updated_at);byLocation.set(locationId,{...budget,__remoteUpdatedAt:data.updated_at})}
   const unlinked=legacyBudgets.filter(b=>!b.sharedLocationId)
   return {payload:{version:2,budgets:[...byLocation.values(),...unlinked],cities:rows.meta?.payload?.cities??rows.legacy?.payload?.cities,vendors:rows.meta?.payload?.vendors??rows.legacy?.payload?.vendors,migration:{unlinkedBudgetCount:unlinked.length}},updated_at:latestOf([...rows.scoped.map((r:any)=>r.updated_at),rows.meta?.updated_at,rows.legacy?.updated_at])}
 }
@@ -83,7 +95,8 @@ export async function saveBudgetDocument(showId:string,payload:any){
   if(metaError)throw metaError
   let latest=meta.updated_at; const conflicts:string[]=[]
   for(const budget of budgets){
-    const locationId=await ensureLocationId(showId,budget); const toolKey=keyFor(locationId); const local=cleanBudget({...budget,sharedLocationId:locationId})
+    const locationId=await ensureLocationId(showId,budget);const state=await lifecycleState(showId,locationId);if(state.deleted||!state.location||state.location.metadata?.archived_at){conflicts.push(locationId);continue}
+    const toolKey=keyFor(locationId); const local=cleanBudget({...budget,sharedLocationId:locationId})
     const {data:current,error:currentError}=await supabase.from('tool_documents').select('payload,updated_at').eq('show_id',showId).eq('tool_key',toolKey).maybeSingle();if(currentError)throw currentError
     const known=budgetTokens.get(tokenFor(showId,locationId))||budget.__remoteUpdatedAt||''
     const remoteBudget=current?.payload?.budget||current?.payload||null
@@ -93,11 +106,11 @@ export async function saveBudgetDocument(showId:string,payload:any){
     const {data,error}=await supabase.from('tool_documents').upsert({show_id:showId,tool_key:toolKey,payload:{version:2,locationId,budget:local}},{onConflict:'show_id,tool_key'}).select('updated_at').single();if(error)throw error
     budgetTokens.set(tokenFor(showId,locationId),data.updated_at);budget.__remoteUpdatedAt=data.updated_at;latest=data.updated_at||latest
   }
-  if(conflicts.length)console.warn('Skipped stale budget locations',conflicts)
+  if(conflicts.length)console.warn('Skipped stale or lifecycle-blocked budget locations',conflicts)
   return {updated_at:latest,conflicts}
 }
 
 export async function loadSharedLocations(showId:string){ if(!supabase)return[]; const {data,error}=await supabase.from('production_locations').select('*').eq('show_id',showId).order('created_at'); if(error)throw error; return (data||[]).filter((r:any)=>!r.metadata?.archived_at) }
 export async function archiveLocation(locationId:string){if(!supabase)throw new Error('Supabase unavailable');const {data:row,error:loadError}=await supabase.from('production_locations').select('metadata,status').eq('id',locationId).single();if(loadError)throw loadError;const {error}=await supabase.from('production_locations').update({status:'Archived',metadata:{...(row.metadata||{}),archived_at:new Date().toISOString(),archived_from_status:row.status||null}}).eq('id',locationId);if(error)throw error}
-export async function permanentlyDeleteLocation(showId:string,locationId:string,reason='Permanent delete'){if(!supabase)throw new Error('Supabase unavailable');const {data:linked,error:linkedError}=await supabase.from('tool_documents').select('tool_key,payload').eq('show_id',showId).in('tool_key',[keyFor(locationId),`bible-location:${locationId}`]);if(linkedError)throw linkedError;const tombstone={version:1,locationId,deletedAt:new Date().toISOString(),reason,linkedKeys:(linked||[]).map((x:any)=>x.tool_key)};const {error:tombError}=await supabase.from('tool_documents').upsert({show_id:showId,tool_key:`location-tombstone:${locationId}`,payload:tombstone},{onConflict:'show_id,tool_key'});if(tombError)throw tombError;if(linked?.length){const {error}=await supabase.from('tool_documents').delete().eq('show_id',showId).in('tool_key',linked.map((x:any)=>x.tool_key));if(error)throw error}const {error}=await supabase.from('production_locations').delete().eq('show_id',showId).eq('id',locationId);if(error)throw error}
-export function subscribeBudget(showId:string,cb:()=>void){ if(!supabase||!showId)return()=>{}; const ch=supabase.channel(`budget-connected:${showId}`).on('postgres_changes',{event:'*',schema:'public',table:'production_locations',filter:`show_id=eq.${showId}`},cb).on('postgres_changes',{event:'*',schema:'public',table:'tool_documents',filter:`show_id=eq.${showId}`},(p:any)=>{const k=p.new?.tool_key||p.old?.tool_key||'';if(k==='budget'||k==='budget-meta'||k.startsWith('budget-location:')||k.startsWith('bible-location:'))cb()}).subscribe(); return()=>{supabase.removeChannel(ch)} }
+export async function permanentlyDeleteLocation(showId:string,locationId:string,reason='Permanent delete'){if(!supabase)throw new Error('Supabase unavailable');const [{data:linked,error:linkedError},{data:locationRecord,error:locationError}]=await Promise.all([supabase.from('tool_documents').select('tool_key,payload,updated_at').eq('show_id',showId).in('tool_key',[keyFor(locationId),bibleKey(locationId)]),supabase.from('production_locations').select('*').eq('show_id',showId).eq('id',locationId).maybeSingle()]);if(linkedError)throw linkedError;if(locationError)throw locationError;const tombstone={version:2,locationId,deletedAt:new Date().toISOString(),reason,locationSnapshot:locationRecord||null,linkedRecords:(linked||[]).map((x:any)=>({toolKey:x.tool_key,payload:x.payload,updatedAt:x.updated_at}))};const {error:tombError}=await supabase.from('tool_documents').upsert({show_id:showId,tool_key:tombstoneKey(locationId),payload:tombstone},{onConflict:'show_id,tool_key'});if(tombError)throw tombError;if(linked?.length){const {error}=await supabase.from('tool_documents').delete().eq('show_id',showId).in('tool_key',linked.map((x:any)=>x.tool_key));if(error)throw error}const {error}=await supabase.from('production_locations').delete().eq('show_id',showId).eq('id',locationId);if(error)throw error}
+export function subscribeBudget(showId:string,cb:()=>void){ if(!supabase||!showId)return()=>{}; const ch=supabase.channel(`budget-connected:${showId}`).on('postgres_changes',{event:'*',schema:'public',table:'production_locations',filter:`show_id=eq.${showId}`},cb).on('postgres_changes',{event:'*',schema:'public',table:'tool_documents',filter:`show_id=eq.${showId}`},(p:any)=>{const k=p.new?.tool_key||p.old?.tool_key||'';if(k==='budget'||k==='budget-meta'||k.startsWith('budget-location:')||k.startsWith('bible-location:')||k.startsWith('location-tombstone:'))cb()}).subscribe(); return()=>{supabase.removeChannel(ch)} }
