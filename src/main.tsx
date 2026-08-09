@@ -162,6 +162,14 @@ function normalizeBibleCommitments(payload:any): BibleCommitment[] {
   }))
 }
 
+const legacySectionNames:Record<string,string> = {
+  'Site Support Rentals & Tents':'Site Support & Tents',
+  'Equipment Rentals & Expendables':'Equipment & Expendables',
+  'Heating / AC Rentals / AC Techs':'HVAC & Power',
+  'Vendors & Equipment Rentals':'Vendor Orders',
+  'Support Payments & Services':'Additional Services',
+}
+
 const standardSections: Section[] = [
   { id: 'location-fees', name: 'Location Site Fee', icon: 'building', account: '36-01' },
   { id: 'staffing', name: 'Site Personnel', icon: 'users', account: '36-04' },
@@ -170,12 +178,12 @@ const standardSections: Section[] = [
   { id: 'fire', name: 'Fire & Safety', icon: 'flame', account: '36-32' },
   { id: 'parking', name: 'Parking & Logistics', icon: 'map', account: '36-03' },
   { id: 'permits', name: 'Permits & Notifications', icon: 'clipboard', account: '36-02' },
-  { id: 'site-support-rentals', name: 'Site Support Rentals & Tents', icon: 'warehouse', account: '36-08' },
-  { id: 'equipment-rentals', name: 'Equipment Rentals & Expendables', icon: 'wrench', account: '36-36' },
-  { id: 'heating-ac', name: 'Heating / AC Rentals / AC Techs', icon: 'flame', account: '36-55' },
-  { id: 'vendors', name: 'Vendors & Equipment Rentals', icon: 'warehouse', account: '36-36' },
+  { id: 'site-support-rentals', name: 'Site Support & Tents', icon: 'warehouse', account: '36-08' },
+  { id: 'equipment-rentals', name: 'Equipment & Expendables', icon: 'wrench', account: '36-36' },
+  { id: 'heating-ac', name: 'HVAC & Power', icon: 'flame', account: '36-55' },
+  { id: 'vendors', name: 'Vendor Orders', icon: 'warehouse', account: '36-36' },
   { id: 'layout', name: 'Layout & Protection', icon: 'wrench', account: '36-05' },
-  { id: 'support', name: 'Support Payments & Services', icon: 'dollar', account: '36-06' },
+  { id: 'support', name: 'Additional Services', icon: 'dollar', account: '36-06' },
   { id: 'restoration', name: 'Restoration & Claims', icon: 'sparkles', account: '36-08' },
   { id: 'unexpected', name: 'Unexpected Costs', icon: 'file', account: '36-99' },
 ]
@@ -629,7 +637,7 @@ function App() {
   if (!activeShow) { setAppView('home'); return null }
   if (!budget) return <EmptyShow show={activeShow} onHome={()=>setAppView('home')} onNew={()=>{ const created:BudgetPage={id:crypto.randomUUID(),showId:activeShow.id,production:activeShow.name,episode:activeShow.episodes[0]||'Episode 1',setName:'New Set',setNumber:'',location:'',version:'Budget V1',cityId:activeShow.defaultCityId||cities[0]?.id||'',contingency:activeShow.defaultContingency,keyAssistantLocationManager:'',items:templateItems(),customSections:[],sectionOverrides:{}}; setBudgets([...budgets,created]); setActiveBudgetId(created.id) }} onEdit={()=>{setEditingShow(activeShow);setAppView('setup')}} />
 
-  const sections = [...standardSections, ...(budget.customSections || [])].map(s => ({...s, ...(budget.sectionOverrides?.[s.id] || {})}))
+  const sections = [...standardSections, ...(budget.customSections || [])].map(section => { const override=budget.sectionOverrides?.[section.id] || {}; const name=override.name&&legacySectionNames[override.name]?legacySectionNames[override.name]:override.name; return {...section,...override,...(name?{name}:{})} })
   const items = budget.items
   const city = cities.find(c => c.id === budget.cityId)
   const sectionTotals = Object.fromEntries(sections.map(s => [s.id, items.filter(i => i.sectionId === s.id).reduce((sum, i) => sum + calcItem(i), 0)]))
