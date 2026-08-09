@@ -14,6 +14,7 @@ const tokenFor = (showId:string,locationId:string) => `${showId}:${locationId}`
 const same = (a:any,b:any) => JSON.stringify(a)===JSON.stringify(b)
 const cleanBudget = (budget:any) => { const {__remoteUpdatedAt,...rest}=budget||{}; return rest }
 const normalize = (v:any) => String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ')
+const latestOf = (values:any[]) => { const sorted=values.filter(Boolean).sort(); return sorted.length?sorted[sorted.length-1]:undefined }
 
 async function allBudgetRows(showId:string){
   if(!supabase)return {legacy:null,scoped:[],meta:null}
@@ -58,7 +59,7 @@ export async function loadBibleDocument(showId:string){
   if(!scoped?.length)return legacy
   const bibles:any = {...(legacy?.payload?.bibles||{})}; const commitments:any = {}
   for(const row of scoped){const record=row.payload?.record||row.payload;if(!record)continue;const id=record.id||record.bibleId||row.tool_key.slice('bible-location:'.length);bibles[id]=record;Object.assign(commitments,record.commitments||{})}
-  return {payload:{...(legacy?.payload||{}),bibles,commitments},updated_at:scoped.map((r:any)=>r.updated_at).sort().at(-1)||legacy?.updated_at}
+  return {payload:{...(legacy?.payload||{}),bibles,commitments},updated_at:latestOf(scoped.map((r:any)=>r.updated_at))||legacy?.updated_at}
 }
 
 export async function loadBudgetDocument(showId:string){
@@ -72,7 +73,7 @@ export async function loadBudgetDocument(showId:string){
   const migrated=legacyBudgets.filter(b=>b.sharedLocationId&&!rows.scoped.some((r:any)=>r.tool_key===keyFor(b.sharedLocationId)))
   for(const budget of migrated){const locationId=budget.sharedLocationId;const {data,error}=await supabase.from('tool_documents').upsert({show_id:showId,tool_key:keyFor(locationId),payload:{version:2,locationId,budget:cleanBudget(budget),migratedFrom:'budget'}},{onConflict:'show_id,tool_key'}).select('updated_at').single();if(error)throw error;budgetTokens.set(tokenFor(showId,locationId),data.updated_at);byLocation.set(locationId,{...budget,__remoteUpdatedAt:data.updated_at})}
   const unlinked=legacyBudgets.filter(b=>!b.sharedLocationId)
-  return {payload:{version:2,budgets:[...byLocation.values(),...unlinked],cities:rows.meta?.payload?.cities??rows.legacy?.payload?.cities,vendors:rows.meta?.payload?.vendors??rows.legacy?.payload?.vendors,migration:{unlinkedBudgetCount:unlinked.length}},updated_at:[...rows.scoped.map((r:any)=>r.updated_at),rows.meta?.updated_at,rows.legacy?.updated_at].filter(Boolean).sort().at(-1)}
+  return {payload:{version:2,budgets:[...byLocation.values(),...unlinked],cities:rows.meta?.payload?.cities??rows.legacy?.payload?.cities,vendors:rows.meta?.payload?.vendors??rows.legacy?.payload?.vendors,migration:{unlinkedBudgetCount:unlinked.length}},updated_at:latestOf([...rows.scoped.map((r:any)=>r.updated_at),rows.meta?.updated_at,rows.legacy?.updated_at])}
 }
 
 export async function saveBudgetDocument(showId:string,payload:any){
