@@ -905,7 +905,21 @@ function InlineNumber({value,onChange,ariaLabel}:{value?:number,onChange:(v:numb
 function BudgetTable({sectionId, items, onEdit, onDelete, onDuplicate, onUpdate, showActuals=false}:{sectionId:string,items:BudgetItem[],onEdit:(item:BudgetItem)=>void,onDelete:(id:string)=>void,onDuplicate:(item:BudgetItem)=>void,onUpdate:(id:string,patch:Partial<BudgetItem>)=>void,showActuals?:boolean}) {
   const locationFee = sectionId === 'location-fees'
   const labor = ['staffing','security','police','fire'].includes(sectionId)
-  if (!locationFee && !labor) return <>{items.map(item => <BudgetRow key={item.id} item={item} onEdit={() => onEdit(item)} onDelete={() => onDelete(item.id)} onDuplicate={() => onDuplicate(item)} onUpdate={patch=>onUpdate(item.id,patch)} showActuals={showActuals} />)}</>
+  if (!locationFee && !labor) {
+    const grouped=new Map<string,{name:string,items:BudgetItem[]}>()
+    const standalone:BudgetItem[]=[]
+    items.forEach(item=>{
+      if(item.calcType!=='vendor'||!item.vendor?.trim()){standalone.push(item);return}
+      const key=vendorGroupKey(item.vendor)
+      const group=grouped.get(key)
+      if(group)group.items.push(item)
+      else grouped.set(key,{name:item.vendor.trim(),items:[item]})
+    })
+    const repeated=[...grouped.values()].filter(group=>group.items.length>1)
+    const singles=[...grouped.values()].filter(group=>group.items.length===1).flatMap(group=>group.items)
+    const row=(item:BudgetItem,suppressVendor=false)=><BudgetRow key={item.id} item={item} suppressVendor={suppressVendor} onEdit={() => onEdit(item)} onDelete={() => onDelete(item.id)} onDuplicate={() => onDuplicate(item)} onUpdate={patch=>onUpdate(item.id,patch)} showActuals={showActuals} />
+    return <div className="grouped-budget-items">{[...standalone,...singles].map(item=>row(item))}{repeated.map(group=><section className="budget-vendor-group" key={vendorGroupKey(group.name)}><header className="budget-vendor-head"><div><Warehouse size={17}/><span><strong>{group.name}</strong><small>{group.items.length} items from this vendor</small></span></div><b>{moneyPrecise(group.items.reduce((sum,item)=>sum+calcItem(item),0))}</b></header><div className="budget-vendor-rows">{group.items.map(item=>row(item,true))}</div></section>)}</div>
+  }
   return <div className={`entry-table ${locationFee ? 'fee-table' : 'labor-table'}`}>
     <div className="entry-table-head">
       <span>Description</span><span>PO #</span>
@@ -928,9 +942,9 @@ function BudgetTable({sectionId, items, onEdit, onDelete, onDuplicate, onUpdate,
   </div>
 }
 
-function BudgetRow({item, onEdit, onDelete, onDuplicate, onUpdate, showActuals=false}:{item:BudgetItem,onEdit:()=>void,onDelete:()=>void,onDuplicate:()=>void,onUpdate:(patch:Partial<BudgetItem>)=>void,showActuals?:boolean}) {
+function BudgetRow({item, onEdit, onDelete, onDuplicate, onUpdate, showActuals=false, suppressVendor=false}:{item:BudgetItem,onEdit:()=>void,onDelete:()=>void,onDuplicate:()=>void,onUpdate:(patch:Partial<BudgetItem>)=>void,showActuals?:boolean,suppressVendor?:boolean}) {
   return <div className="budget-row editable-row" role="button" tabIndex={0} onClick={onEdit} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onEdit() }}>
-    <div><strong>{item.name}</strong>{item.poNumber && <span className="po-badge">PO {item.poNumber}</span>}<small>{item.vendor ? `${item.vendor} · ` : ''}{formulaText(item)}</small><span className="edit-hint no-print">Click to edit</span></div>
+    <div><strong>{item.name}</strong>{item.poNumber && <span className="po-badge">PO {item.poNumber}</span>}<small>{item.vendor && !suppressVendor ? `${item.vendor} · ` : ''}{formulaText(item)}</small><span className="edit-hint no-print">Click to edit</span></div>
     <div className="row-total"><span>{moneyPrecise(calcItem(item))}</span>{showActuals&&<span className="row-actuals"><label>Actual <InlineNumber value={item.actualAmount} onChange={v=>onUpdate({actualAmount:v,status:'actual'})} ariaLabel={`Actual for ${item.name}`}/></label><small className={(calcItem(item)-(item.actualAmount||0))<0?'negative':''}>Variance {moneyPrecise(calcItem(item)-(item.actualAmount||0))}</small></span>}<button className="icon-btn no-print" aria-label={`Edit ${item.name}`} onClick={e => { e.stopPropagation(); onEdit() }}><Pencil size={15}/></button><button className="icon-btn no-print" aria-label={`Duplicate ${item.name}`} onClick={e => { e.stopPropagation(); onDuplicate() }}><Copy size={15}/></button><button className="icon-btn no-print danger" aria-label={`Delete ${item.name}`} onClick={e => { e.stopPropagation(); onDelete() }}><Trash2 size={15}/></button></div>
   </div>
 }
