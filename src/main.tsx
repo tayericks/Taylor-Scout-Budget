@@ -101,6 +101,7 @@ type BudgetPage = {
   items: BudgetItem[]
   customSections?: Section[]
   sectionOverrides?: Record<string, {name?: string; account?: string}>
+  sectionOrder?: string[]
   sharedLocationId?: string
   calendarAssignmentIds?: string[]
   scenes?: string
@@ -523,6 +524,8 @@ function App() {
   const [activeModal, setActiveModal] = useState<'item' | 'city' | 'vendor' | 'newBudget' | 'copyBudget' | 'addSection' | 'printSelection' | 'connections' | null>(null)
   const [activeSection, setActiveSection] = useState('staffing')
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
+  const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null)
+  const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null)
   const [saveState, setSaveState] = useState<'saved'|'saving'>('saved')
   const [syncState, setSyncState] = useState<'local'|'connecting'|'connected'|'error'>('connecting')
   const [syncMessage, setSyncMessage] = useState('Connecting…')
@@ -637,7 +640,9 @@ function App() {
   if (!activeShow) { setAppView('home'); return null }
   if (!budget) return <EmptyShow show={activeShow} onHome={()=>setAppView('home')} onNew={()=>{ const created:BudgetPage={id:crypto.randomUUID(),showId:activeShow.id,production:activeShow.name,episode:activeShow.episodes[0]||'Episode 1',setName:'New Set',setNumber:'',location:'',version:'Budget V1',cityId:activeShow.defaultCityId||cities[0]?.id||'',contingency:activeShow.defaultContingency,keyAssistantLocationManager:'',items:templateItems(),customSections:[],sectionOverrides:{}}; setBudgets([...budgets,created]); setActiveBudgetId(created.id) }} onEdit={()=>{setEditingShow(activeShow);setAppView('setup')}} />
 
-  const sections = [...standardSections, ...(budget.customSections || [])].map(section => { const override=budget.sectionOverrides?.[section.id] || {}; const name=override.name&&legacySectionNames[override.name]?legacySectionNames[override.name]:override.name; return {...section,...override,...(name?{name}:{})} })
+  const unorderedSections = [...standardSections, ...(budget.customSections || [])].map(section => { const override=budget.sectionOverrides?.[section.id] || {}; const name=override.name&&legacySectionNames[override.name]?legacySectionNames[override.name]:override.name; return {...section,...override,...(name?{name}:{})} })
+  const savedSectionOrder = budget.sectionOrder || []
+  const sections = [...unorderedSections].sort((a,b) => { const ai=savedSectionOrder.indexOf(a.id),bi=savedSectionOrder.indexOf(b.id); return (ai<0?Number.MAX_SAFE_INTEGER:ai)-(bi<0?Number.MAX_SAFE_INTEGER:bi) })
   const items = budget.items
   const city = cities.find(c => c.id === budget.cityId)
   const sectionTotals = Object.fromEntries(sections.map(s => [s.id, items.filter(i => i.sectionId === s.id).reduce((sum, i) => sum + calcItem(i), 0)]))
@@ -651,6 +656,14 @@ function App() {
   const episodes = orderedBudgetEpisodes([...(activeShow?.episodes || []), ...showBudgets.map(b => b.episode)])
 
   const updateBudget = (patch: Partial<BudgetPage>) => setBudgets(prev => prev.map(b => b.id === budget.id ? {...b, ...patch} : b))
+  const moveSection = (targetId:string) => {
+    if(!draggedSectionId||draggedSectionId===targetId){setDraggedSectionId(null);setDragOverSectionId(null);return}
+    const order=sections.map(section=>section.id)
+    const from=order.indexOf(draggedSectionId),to=order.indexOf(targetId)
+    if(from<0||to<0)return
+    order.splice(from,1);order.splice(to,0,draggedSectionId)
+    updateBudget({sectionOrder:order});setDraggedSectionId(null);setDragOverSectionId(null)
+  }
   const deleteCurrentBudget = () => {
     if (!window.confirm(`Delete budget “${budget.setName}”? This permanently removes this budget and cannot be undone.`)) return
     const remaining = showBudgets.filter(b => b.id !== budget.id)
@@ -761,8 +774,9 @@ function App() {
           {sections.map(section => {
             const open = openSections.includes(section.id)
             const sectionItems = items.filter(i => i.sectionId === section.id)
-            return <section className="budget-section" key={section.id}>
+            return <section className={`budget-section section-sort-card ${draggedSectionId===section.id?'dragging':''} ${dragOverSectionId===section.id?'drag-over':''}`} key={section.id} draggable onDragStart={e=>{setDraggedSectionId(section.id);e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',section.id)}} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect='move';setDragOverSectionId(section.id)}} onDragLeave={()=>setDragOverSectionId(current=>current===section.id?null:current)} onDrop={e=>{e.preventDefault();moveSection(section.id)}} onDragEnd={()=>{setDraggedSectionId(null);setDragOverSectionId(null)}}>
               <div className="section-header">
+                <span className="section-drag-handle no-print" title="Drag to reorder" aria-label="Drag section to reorder">⋮⋮</span>
                 <button className="section-toggle-button" onClick={() => setOpenSections(open ? openSections.filter(x => x !== section.id) : [...openSections, section.id])}>{open ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}</button>
                 <span className="section-icon">{iconMap[section.icon]}</span>
                 <div className="section-edit-fields">
