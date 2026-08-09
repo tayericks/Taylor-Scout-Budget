@@ -976,7 +976,7 @@ function ItemModal({sectionId, sectionName, initialItem, cities, city, vendors, 
         <Num label="People" value={data.people} set={(v)=>setData({...data,people:v})}/><Num label="Days" value={data.days} set={(v)=>setData({...data,days:v})}/><Num label="Day rate" value={data.dayRate} set={(v)=>setData({...data,dayRate:v})}/><Num label="Included hours" value={data.includedHours} set={(v)=>setData({...data,includedHours:v})}/><Num label="1.5× hours/day" value={data.ot15Hours} set={(v)=>setData({...data,ot15Hours:v})}/><Num label="2× hours/day" value={data.ot2Hours} set={(v)=>setData({...data,ot2Hours:v})}/><Num label="Kit fee" value={data.kitFee} set={(v)=>setData({...data,kitFee:v})}/><label>Kit fee type<select value={data.kitFeeMode} onChange={e=>setData({...data,kitFeeMode:e.target.value})}><option value="perDay">Per person / day</option><option value="flat">Flat job fee</option></select></label>
       </>}
       {type==='vendor' && <>
-        <label className="span-2">Saved vendor item<select value={vendorId} onChange={e=>{setVendorId(e.target.value); const v=vendors.find(x=>x.id===e.target.value); if(v)setName(v.name)}}>{vendors.map(v=><option key={v.id} value={v.id}>{v.vendor} — {v.name}</option>)}</select></label>
+        <label className="span-2">Saved vendor item<select value={vendorId} onChange={e=>{setVendorId(e.target.value); const v=vendors.find(x=>x.id===e.target.value); if(v)setName(v.name)}}>{Array.from(new Map(vendors.map(v=>[vendorGroupKey(v.vendor),v.vendor])).entries()).sort((a,b)=>a[1].localeCompare(b[1])).map(([key,label])=><optgroup key={key} label={label}>{vendors.filter(v=>vendorGroupKey(v.vendor)===key).sort((a,b)=>a.name.localeCompare(b.name)).map(v=><option key={v.id} value={v.id}>{v.name}</option>)}</optgroup>)}</select></label>
         <Num label="Units" value={data.units} set={(v)=>setData({...data,units:v})}/>{data.vendorBillingType==='flat'?<Num label="Flat rate per unit" value={data.vendorFlatRate||0} set={(v)=>setData({...data,vendorFlatRate:v})}/>:<><Num label="Rental weeks" value={data.weeks} set={(v)=>setData({...data,weeks:v})}/><Num label="Weekly rate" value={data.weeklyRate} set={(v)=>setData({...data,weeklyRate:v})}/></>}<Num label="Services per unit" value={data.servicesPerUnit} set={(v)=>setData({...data,servicesPerUnit:v})}/><Num label="Service rate" value={data.serviceRate} set={(v)=>setData({...data,serviceRate:v})}/><Num label="Delivery + pickup" value={data.flatAmount} set={(v)=>setData({...data,flatAmount:v})}/>
       </>}
     </div>
@@ -1019,10 +1019,44 @@ function ConnectionsModal({budget,activeShow,calendarUrl,bibleUrl,onClose}:{budg
   return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="modal connections-modal compact-connections"><div className="modal-head"><div><span className="eyebrow">SHARED SHOW DATA</span><h2>Connected tools</h2></div><button className="icon-btn" onClick={onClose}><X/></button></div><p className="library-help">Calendar, Budget, and Bible now use the same shared show and location records. Manual JSON import and Bible-package export are no longer needed.</p><div className="connection-status-list"><div><CalendarDays size={20}/><span><b>Calendar</b><small>Connected schedule and location source</small></span><strong>Connected</strong></div><div><DollarSign size={20}/><span><b>Budget</b><small>{budget.episode} · {budget.setName}</small></span><strong>Active</strong></div><div><BookOpen size={20}/><span><b>Bible</b><small>Connected orders and commitments</small></span><strong>Connected</strong></div></div><div className="connection-status"><strong>Connected record</strong><span>{budget.episode} · {budget.setName}</span><span>{budget.location||'No physical location'}</span><small>{budget.sharedLocationId?'Shared location ID: '+budget.sharedLocationId:'Not yet linked to a shared location'}</small></div><div className="modal-actions connection-actions"><button className="secondary" onClick={()=>window.location.href=calendarUrl}>Open Calendar</button><button className="secondary" onClick={()=>window.location.href=bibleUrl}>Open Bible</button><button className="secondary" onClick={backup}><Download size={16}/> Budget Backup</button><button className="primary" onClick={onClose}>Done</button></div></div></div>
 }
 
+function vendorGroupKey(value:string) {
+  return String(value || 'Unassigned vendor').trim().toLowerCase().replace(/&/g,'and').replace(/[^a-z0-9]+/g,' ').trim()
+}
+
 function VendorLibrary({vendors,setVendors}:{vendors:VendorItem[],setVendors:(v:VendorItem[])=>void}) {
-  const add = () => setVendors([...vendors,{id:crypto.randomUUID(),vendor:'New Vendor',name:'New item',billingType:'weekly',weeklyRate:0,flatRate:0,serviceRate:0,deliveryFee:0,pickupFee:0}])
-  const patch=(idx:number, changes:Partial<VendorItem>)=>setVendors(vendors.map((x,i)=>i===idx?{...x,...changes}:x))
-  return <div><p className="library-help">Rename each saved item and choose whether its base rental is billed weekly or as a flat charge. Service, delivery, and pickup fees remain optional.</p><div className="library-grid">{vendors.map((v,idx)=><div className="library-card" key={v.id}><div className="library-card-head"><input className="title-input" value={v.name} onChange={e=>patch(idx,{name:e.target.value})} aria-label="Vendor item name"/><button className="icon-btn" onClick={()=>setVendors(vendors.filter(x=>x.id!==v.id))}><Trash2 size={15}/></button></div><label>Vendor<input value={v.vendor} onChange={e=>patch(idx,{vendor:e.target.value})}/></label><label>Billing type<select value={v.billingType||'weekly'} onChange={e=>patch(idx,{billingType:e.target.value as 'weekly'|'flat'})}><option value="weekly">Weekly rental</option><option value="flat">Flat item</option></select></label><div className="mini-grid">{(v.billingType||'weekly')==='weekly'?<Num label="Weekly rate" value={v.weeklyRate} set={n=>patch(idx,{weeklyRate:n})}/>:<Num label="Flat rate per unit" value={v.flatRate||0} set={n=>patch(idx,{flatRate:n})}/>}<Num label="Service rate / unit" value={v.serviceRate} set={n=>patch(idx,{serviceRate:n})}/><Num label="Delivery" value={v.deliveryFee} set={n=>patch(idx,{deliveryFee:n})}/><Num label="Pickup" value={v.pickupFee} set={n=>patch(idx,{pickupFee:n})}/></div></div>)}</div><button className="add-row" onClick={add}><Plus size={16}/> Add vendor item</button></div>
+  const groups=useMemo(()=>{
+    const byKey=new Map<string,{key:string,name:string,items:VendorItem[]}>()
+    vendors.forEach(item=>{
+      const key=vendorGroupKey(item.vendor)
+      const current=byKey.get(key)
+      if(current) current.items.push(item)
+      else byKey.set(key,{key,name:item.vendor.trim()||'Unassigned vendor',items:[item]})
+    })
+    return Array.from(byKey.values()).map(group=>({...group,items:[...group.items].sort((a,b)=>a.name.localeCompare(b.name))})).sort((a,b)=>a.name.localeCompare(b.name))
+  },[vendors])
+  const [openKeys,setOpenKeys]=useState<string[]>(()=>groups.slice(0,1).map(g=>g.key))
+  const patchItem=(id:string,changes:Partial<VendorItem>)=>setVendors(vendors.map(item=>item.id===id?{...item,...changes}:item))
+  const renameVendor=(key:string,name:string)=>setVendors(vendors.map(item=>vendorGroupKey(item.vendor)===key?{...item,vendor:name}:item))
+  const addVendor=()=>{
+    const item={id:crypto.randomUUID(),vendor:'New Vendor',name:'New item',billingType:'weekly' as const,weeklyRate:0,flatRate:0,serviceRate:0,deliveryFee:0,pickupFee:0}
+    setVendors([...vendors,item]); setOpenKeys([...new Set([...openKeys,vendorGroupKey(item.vendor)])])
+  }
+  const addItem=(group:{key:string,name:string})=>{
+    const item={id:crypto.randomUUID(),vendor:group.name,name:'New item',billingType:'weekly' as const,weeklyRate:0,flatRate:0,serviceRate:0,deliveryFee:0,pickupFee:0}
+    setVendors([...vendors,item]); setOpenKeys([...new Set([...openKeys,group.key])])
+  }
+  const removeVendor=(key:string)=>{
+    const group=groups.find(g=>g.key===key)
+    if(!group||!window.confirm(`Delete ${group.name} and all ${group.items.length} saved item${group.items.length===1?'':'s'}?`))return
+    setVendors(vendors.filter(item=>vendorGroupKey(item.vendor)!==key))
+  }
+  return <div className="vendor-library"><p className="library-help">Vendors are consolidated below. Open a vendor to edit or select its saved equipment and services. New items added inside a vendor remain grouped with that vendor automatically.</p><div className="vendor-groups">{groups.map(group=>{
+    const open=openKeys.includes(group.key)
+    return <section className={`vendor-group ${open?'open':''}`} key={group.key}>
+      <div className="vendor-group-head"><button className="vendor-expand" onClick={()=>setOpenKeys(open?openKeys.filter(k=>k!==group.key):[...openKeys,group.key])} aria-expanded={open}>{open?<ChevronDown size={18}/>:<ChevronRight size={18}/>}<span><strong>{group.name}</strong><small>{group.items.length} saved item{group.items.length===1?'':'s'}</small></span></button><div className="vendor-head-actions"><button className="secondary compact" onClick={()=>addItem(group)}><Plus size={14}/> Add item</button><button className="icon-btn danger" onClick={()=>removeVendor(group.key)} title="Delete vendor"><Trash2 size={15}/></button></div></div>
+      {open&&<div className="vendor-item-list"><label className="vendor-name-field">Vendor name<input value={group.name} onChange={e=>renameVendor(group.key,e.target.value)}/></label>{group.items.map(v=><article className="vendor-item-row" key={v.id}><div className="vendor-item-title"><input className="title-input" value={v.name} onChange={e=>patchItem(v.id,{name:e.target.value})} aria-label="Vendor item name"/><button className="icon-btn" onClick={()=>setVendors(vendors.filter(x=>x.id!==v.id))} title="Delete item"><Trash2 size={15}/></button></div><label>Billing type<select value={v.billingType||'weekly'} onChange={e=>patchItem(v.id,{billingType:e.target.value as 'weekly'|'flat'})}><option value="weekly">Weekly rental</option><option value="flat">Flat item</option></select></label><div className="mini-grid">{(v.billingType||'weekly')==='weekly'?<Num label="Weekly rate" value={v.weeklyRate} set={n=>patchItem(v.id,{weeklyRate:n})}/>:<Num label="Flat rate per unit" value={v.flatRate||0} set={n=>patchItem(v.id,{flatRate:n})}/>}<Num label="Service rate / unit" value={v.serviceRate} set={n=>patchItem(v.id,{serviceRate:n})}/><Num label="Delivery" value={v.deliveryFee} set={n=>patchItem(v.id,{deliveryFee:n})}/><Num label="Pickup" value={v.pickupFee} set={n=>patchItem(v.id,{pickupFee:n})}/></div></article>)}</div>}
+    </section>
+  })}</div><button className="add-row" onClick={addVendor}><Plus size={16}/> Add vendor</button></div>
 }
 
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>)
