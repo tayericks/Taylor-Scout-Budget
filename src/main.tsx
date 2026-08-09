@@ -918,7 +918,7 @@ function BudgetTable({sectionId, items, onEdit, onDelete, onDuplicate, onUpdate,
     const repeated=[...grouped.values()].filter(group=>group.items.length>1)
     const singles=[...grouped.values()].filter(group=>group.items.length===1).flatMap(group=>group.items)
     const row=(item:BudgetItem,suppressVendor=false)=><BudgetRow key={item.id} item={item} suppressVendor={suppressVendor} onEdit={() => onEdit(item)} onDelete={() => onDelete(item.id)} onDuplicate={() => onDuplicate(item)} onUpdate={patch=>onUpdate(item.id,patch)} showActuals={showActuals} />
-    return <div className="grouped-budget-items">{[...standalone,...singles].map(item=>row(item))}{repeated.map(group=><section className="budget-vendor-group" key={vendorGroupKey(group.name)}><header className="budget-vendor-head"><div><Warehouse size={17}/><span><strong>{group.name}</strong><small>{group.items.length} items from this vendor</small></span></div><b>{moneyPrecise(group.items.reduce((sum,item)=>sum+calcItem(item),0))}</b></header><div className="budget-vendor-rows">{group.items.map(item=>row(item,true))}</div></section>)}</div>
+    return <div className="grouped-budget-items">{[...standalone,...singles].map(item=>row(item))}{repeated.map(group=><section className="budget-vendor-group" key={vendorGroupKey(group.name)}><div className="budget-vendor-head"><strong>{group.name}</strong><span>{group.items.length} items</span><b>{moneyPrecise(group.items.reduce((sum,item)=>sum+calcItem(item),0))}</b></div><div className="budget-vendor-rows">{group.items.map(item=>row(item,true))}</div></section>)}</div>
   }
   return <div className={`entry-table ${locationFee ? 'fee-table' : 'labor-table'}`}>
     <div className="entry-table-head">
