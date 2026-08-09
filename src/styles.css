@@ -207,3 +207,29 @@ button,input,select,textarea{font-family:var(--ts-font)!important;border-radius:
 
 /* v30.7 title contrast + FilmLA official fee catalog */
 .budget-topbar .budget-title h1,.budget-topbar .budget-title h1 *{color:#102a3b!important;opacity:1!important;text-shadow:none!important;font-weight:800!important}.budget-topbar .budget-title p{color:#607180!important;opacity:1!important}.budget-topbar .budget-title .eyebrow{color:#c56f13!important;opacity:1!important}.official-fees{margin-top:16px;border:1px solid var(--ts-border);border-radius:8px;overflow:hidden;background:#fff}.official-fees-head{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;background:#edf4f6;border-bottom:1px solid var(--ts-border)}.official-fees-head span{font-size:11px;color:#607180}.official-fee-row{display:grid;grid-template-columns:minmax(0,1fr) 110px 220px;gap:12px;padding:9px 12px;border-bottom:1px solid #e7edf1;align-items:center}.official-fee-row:last-child{border-bottom:0}.official-fee-row b{text-align:right;color:#102a3b}.official-fee-row small{color:#607180}@media(max-width:850px){.official-fee-row{grid-template-columns:1fr auto}.official-fee-row small{grid-column:1/-1}}
+
+
+/* v30.10 single-line budget action toolbar */
+.budget-topbar .top-actions{
+  width:100%!important;
+  display:flex!important;
+  align-items:stretch!important;
+  flex-wrap:nowrap!important;
+  gap:6px!important;
+  overflow-x:auto!important;
+  scrollbar-width:thin;
+}
+.budget-topbar .top-actions>*{
+  flex:0 1 auto!important;
+  min-width:0!important;
+  min-height:38px!important;
+  padding:8px 9px!important;
+  font-size:12px!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+}
+.budget-topbar .top-actions svg{
+  width:16px!important;
+  height:16px!important;
+  flex:0 0 16px!important;
+}
