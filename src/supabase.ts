@@ -130,4 +130,20 @@ export async function saveBudgetDocument(showId:string,payload:any){
 export async function loadSharedLocations(showId:string){ if(!supabase)return[]; const {data,error}=await supabase.from('production_locations').select('*').eq('show_id',showId).order('created_at'); if(error)throw error; return (data||[]).filter((r:any)=>!r.metadata?.archived_at) }
 export async function archiveLocation(locationId:string){if(!supabase)throw new Error('Supabase unavailable');const {data:row,error:loadError}=await supabase.from('production_locations').select('metadata,status').eq('id',locationId).single();if(loadError)throw loadError;const {error}=await supabase.from('production_locations').update({status:'Archived',metadata:{...(row.metadata||{}),archived_at:new Date().toISOString(),archived_from_status:row.status||null}}).eq('id',locationId);if(error)throw error}
 export async function permanentlyDeleteLocation(showId:string,locationId:string,reason='Permanent delete'){if(!supabase)throw new Error('Supabase unavailable');const [{data:linked,error:linkedError},{data:locationRecord,error:locationError}]=await Promise.all([supabase.from('tool_documents').select('tool_key,payload,updated_at').eq('show_id',showId).in('tool_key',[keyFor(locationId),bibleKey(locationId)]),supabase.from('production_locations').select('*').eq('show_id',showId).eq('id',locationId).maybeSingle()]);if(linkedError)throw linkedError;if(locationError)throw locationError;const tombstone={version:2,locationId,deletedAt:new Date().toISOString(),reason,locationSnapshot:locationRecord||null,linkedRecords:(linked||[]).map((x:any)=>({toolKey:x.tool_key,payload:x.payload,updatedAt:x.updated_at}))};const {error:tombError}=await supabase.from('tool_documents').upsert({show_id:showId,tool_key:locationTombstoneKey(locationId),payload:tombstone},{onConflict:'show_id,tool_key'});if(tombError)throw tombError;if(linked?.length){const {error}=await supabase.from('tool_documents').delete().eq('show_id',showId).in('tool_key',linked.map((x:any)=>x.tool_key));if(error)throw error}const {error}=await supabase.from('production_locations').delete().eq('show_id',showId).eq('id',locationId);if(error)throw error}
-export function subscribeBudget(showId:string,cb:()=>void){ if(!supabase||!showId)return()=>{}; const ch=supabase.channel(`budget-connected:${showId}`).on('postgres_changes',{event:'*',schema:'public',table:'production_locations',filter:`show_id=eq.${showId}`},cb).on('postgres_changes',{event:'*',schema:'public',table:'tool_documents',filter:`show_id=eq.${showId}`},(p:any)=>{const k=p.new?.tool_key||p.old?.tool_key||'';if(k==='budget'||k==='budget-meta'||k.startsWith('budget-location:')||k.startsWith('budget-tombstone:')||k.startsWith('bible-location:')||k.startsWith('location-tombstone:'))cb()}).subscribe(); return()=>{supabase.removeChannel(ch)} }
+export function subscribeBudget(showId:string,cb:()=>void){
+  if(!supabase||!showId)return()=>{}
+  // Budget writes autosave locally first. Rehydrating in response to our own
+  // budget/meta realtime echo can replace a just-edited value before the next
+  // autosave finishes. Only cross-tool records should trigger a live refresh;
+  // budget records themselves are refreshed on page load and explicit reload.
+  let timer:number|undefined
+  const refresh=()=>{ if(timer)window.clearTimeout(timer); timer=window.setTimeout(cb,1200) }
+  const ch=supabase.channel(`budget-connected:${showId}`)
+    .on('postgres_changes',{event:'*',schema:'public',table:'production_locations',filter:`show_id=eq.${showId}`},refresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'tool_documents',filter:`show_id=eq.${showId}`},(p:any)=>{
+      const k=p.new?.tool_key||p.old?.tool_key||''
+      if(k.startsWith('bible-location:')||k.startsWith('location-tombstone:')) refresh()
+    })
+    .subscribe()
+  return()=>{if(timer)window.clearTimeout(timer);supabase.removeChannel(ch)}
+}
