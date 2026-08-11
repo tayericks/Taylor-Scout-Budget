@@ -1,0 +1,106 @@
+name: Apply copy-line-item feature
+
+on:
+  push:
+    branches:
+      - feature/copy-line-items
+    paths:
+      - .github/workflows/apply-copy-line-items.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/copy-line-items
+      - name: Apply isolated UI patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/main.tsx')
+          s = p.read_text()
+
+          def rep(old, new, label):
+              global s
+              if old not in s:
+                  raise SystemExit(f'missing patch anchor: {label}')
+              s = s.replace(old, new, 1)
+
+          rep(
+              "const [activeModal, setActiveModal] = useState<'item' | 'city' | 'vendor' | 'newBudget' | 'copyBudget' | 'addSection' | 'printSelection' | 'connections' | null>(null)\n  const [activeSection, setActiveSection] = useState('staffing')\n  const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)",
+              "const [activeModal, setActiveModal] = useState<'item' | 'city' | 'vendor' | 'newBudget' | 'copyBudget' | 'copyItem' | 'addSection' | 'printSelection' | 'connections' | null>(null)\n  const [activeSection, setActiveSection] = useState('staffing')\n  const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)\n  const [copyingItem, setCopyingItem] = useState<BudgetItem | null>(null)",
+              'modal state'
+          )
+
+          rep(
+              "  const duplicateItem = (item: BudgetItem) => {\n    const duplicate: BudgetItem = {...item, id: crypto.randomUUID(), name: `${item.name} Copy`}\n    const index = items.findIndex(i => i.id === item.id)\n    const next = [...items]\n    next.splice(index >= 0 ? index + 1 : next.length, 0, duplicate)\n    updateBudget({items: next})\n    if (!openSections.includes(item.sectionId)) setOpenSections(prev => [...prev, item.sectionId])\n  }\n  const startAddItem = (sectionId: string) => { setEditingItem(null); setActiveSection(sectionId); setActiveModal('item') }",
+              "  const duplicateItem = (item: BudgetItem) => {\n    const duplicate: BudgetItem = {...item, id: crypto.randomUUID(), name: `${item.name} Copy`}\n    const index = items.findIndex(i => i.id === item.id)\n    const next = [...items]\n    next.splice(index >= 0 ? index + 1 : next.length, 0, duplicate)\n    updateBudget({items: next})\n    if (!openSections.includes(item.sectionId)) setOpenSections(prev => [...prev, item.sectionId])\n  }\n  const startCopyItem = (item: BudgetItem) => { setCopyingItem(item); setActiveModal('copyItem') }\n  const copyItemToBudgets = (targetIds:string[]) => {\n    if (!copyingItem || !targetIds.length) return\n    const sourceCustomSection=(budget.customSections||[]).find(s=>s.id===copyingItem.sectionId)\n    setBudgets(prev=>prev.map(dest=>{\n      if(!targetIds.includes(dest.id)) return dest\n      const hasSection=standardSections.some(s=>s.id===copyingItem.sectionId)||(dest.customSections||[]).some(s=>s.id===copyingItem.sectionId)\n      return {...dest,items:[...(dest.items||[]),{...copyingItem,id:crypto.randomUUID()}],customSections:!hasSection&&sourceCustomSection?[...(dest.customSections||[]),{...sourceCustomSection}]:(dest.customSections||[])}\n    }))\n    setCopyingItem(null); setActiveModal(null)\n  }\n  const startAddItem = (sectionId: string) => { setEditingItem(null); setActiveSection(sectionId); setActiveModal('item') }",
+              'copy handlers'
+          )
+
+          rep(
+              "<BudgetTable sectionId={section.id} items={sectionItems} onEdit={startEditItem} onDelete={deleteItem} onDuplicate={duplicateItem} onUpdate={updateItem} showActuals={showActuals} />",
+              "<BudgetTable sectionId={section.id} items={sectionItems} onEdit={startEditItem} onDelete={deleteItem} onDuplicate={duplicateItem} onCopy={startCopyItem} onUpdate={updateItem} showActuals={showActuals} />",
+              'table call'
+          )
+
+          rep(
+              "      {activeModal === 'item' && <ItemModal sectionId={activeSection} sectionName={sections.find(s=>s.id===activeSection)?.name || 'Budget Item'} initialItem={editingItem || undefined} cities={cities} city={city} vendors={vendors} onClose={() => { setActiveModal(null); setEditingItem(null) }} onSave={item => { saveItem(item); setActiveModal(null); setEditingItem(null) }} />}\n      {activeModal === 'city' &&",
+              "      {activeModal === 'item' && <ItemModal sectionId={activeSection} sectionName={sections.find(s=>s.id===activeSection)?.name || 'Budget Item'} initialItem={editingItem || undefined} cities={cities} city={city} vendors={vendors} onClose={() => { setActiveModal(null); setEditingItem(null) }} onSave={item => { saveItem(item); setActiveModal(null); setEditingItem(null) }} />}\n      {activeModal === 'copyItem' && copyingItem && <CopyItemModal item={copyingItem} sourceBudget={budget} budgets={showBudgets.filter(b=>b.id!==budget.id)} onClose={()=>{setCopyingItem(null);setActiveModal(null)}} onCopy={copyItemToBudgets}/>}\n      {activeModal === 'city' &&",
+              'modal render'
+          )
+
+          rep(
+              "function PrintSelectionModal({episodes,budgets,currentEpisode,onClose,onPrint}:{episodes:string[],budgets:BudgetPage[],currentEpisode:string,onClose:()=>void,onPrint:(ids:string[])=>void}) {",
+              "function CopyItemModal({item,sourceBudget,budgets,onClose,onCopy}:{item:BudgetItem,sourceBudget:BudgetPage,budgets:BudgetPage[],onClose:()=>void,onCopy:(ids:string[])=>void}) {\n  const [selected,setSelected]=useState<string[]>([])\n  const episodes=orderedBudgetEpisodes(budgets.map(b=>b.episode))\n  const toggle=(id:string)=>setSelected(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id])\n  const toggleEpisode=(episode:string)=>{const ids=budgets.filter(b=>budgetEpisodeGroup(b.episode)===episode).map(b=>b.id);const all=ids.length>0&&ids.every(id=>selected.includes(id));setSelected(prev=>all?prev.filter(id=>!ids.includes(id)):[...new Set([...prev,...ids])])}\n  return <div className=\"modal-backdrop\" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className=\"modal large\"><div className=\"modal-head\"><div><span className=\"eyebrow\">COPY LINE ITEM</span><h2>{item.name}</h2></div><button className=\"icon-btn\" onClick={onClose}><X/></button></div><p className=\"library-help\">Copy from <b>{sourceBudget.episode} · {sourceBudget.setName}</b> to one or more budget pages. The original stays unchanged, and every copy remains independently editable.</p>{budgets.length===0?<div className=\"empty\">There are no other budget pages in this show yet.</div>:<><div className=\"print-picker-episodes\">{episodes.map(ep=><button type=\"button\" key={ep} className=\"secondary\" onClick={()=>toggleEpisode(ep)}>Select {ep}</button>)}</div><div className=\"print-picker-list\">{budgets.map(b=><label key={b.id}><input type=\"checkbox\" checked={selected.includes(b.id)} onChange={()=>toggle(b.id)}/><span><strong>{b.setName}</strong><small>{budgetEpisodeGroup(b.episode)} · {b.location||'No location entered'}</small></span><b>{money(b.items.reduce((sum,i)=>sum+calcItem(i),0))}</b></label>)}</div></>}<div className=\"modal-actions\"><button className=\"secondary\" onClick={onClose}>Cancel</button><button className=\"primary\" disabled={!selected.length} onClick={()=>onCopy(selected)}><Link2 size={16}/> Copy to {selected.length} budget{selected.length===1?'':'s'}</button></div></div></div>\n}\n\nfunction PrintSelectionModal({episodes,budgets,currentEpisode,onClose,onPrint}:{episodes:string[],budgets:BudgetPage[],currentEpisode:string,onClose:()=>void,onPrint:(ids:string[])=>void}) {",
+              'copy modal'
+          )
+
+          rep(
+              "function BudgetTable({sectionId, items, onEdit, onDelete, onDuplicate, onUpdate, showActuals=false}:{sectionId:string,items:BudgetItem[],onEdit:(item:BudgetItem)=>void,onDelete:(id:string)=>void,onDuplicate:(item:BudgetItem)=>void,onUpdate:(id:string,patch:Partial<BudgetItem>)=>void,showActuals?:boolean}) {",
+              "function BudgetTable({sectionId, items, onEdit, onDelete, onDuplicate, onCopy, onUpdate, showActuals=false}:{sectionId:string,items:BudgetItem[],onEdit:(item:BudgetItem)=>void,onDelete:(id:string)=>void,onDuplicate:(item:BudgetItem)=>void,onCopy:(item:BudgetItem)=>void,onUpdate:(id:string,patch:Partial<BudgetItem>)=>void,showActuals?:boolean}) {",
+              'table signature'
+          )
+
+          rep(
+              "const row=(item:BudgetItem,suppressVendor=false)=><BudgetRow key={item.id} item={item} suppressVendor={suppressVendor} onEdit={() => onEdit(item)} onDelete={() => onDelete(item.id)} onDuplicate={() => onDuplicate(item)} onUpdate={patch=>onUpdate(item.id,patch)} showActuals={showActuals} />",
+              "const row=(item:BudgetItem,suppressVendor=false)=><BudgetRow key={item.id} item={item} suppressVendor={suppressVendor} onEdit={() => onEdit(item)} onDelete={() => onDelete(item.id)} onDuplicate={() => onDuplicate(item)} onCopy={() => onCopy(item)} onUpdate={patch=>onUpdate(item.id,patch)} showActuals={showActuals} />",
+              'grouped row'
+          )
+
+          rep(
+              "<button className=\"icon-btn\" onClick={()=>onDuplicate(item)} title=\"Duplicate item\"><Copy size={14}/></button><button className=\"icon-btn danger\" onClick={()=>onDelete(item.id)} title=\"Delete item\"><Trash2 size={14}/></button>",
+              "<button className=\"icon-btn\" onClick={()=>onDuplicate(item)} title=\"Duplicate item on this budget\"><Copy size={14}/></button><button className=\"icon-btn\" onClick={()=>onCopy(item)} title=\"Copy item to another budget\"><Link2 size={14}/></button><button className=\"icon-btn danger\" onClick={()=>onDelete(item.id)} title=\"Delete item\"><Trash2 size={14}/></button>",
+              'table actions'
+          )
+
+          rep(
+              "function BudgetRow({item, onEdit, onDelete, onDuplicate, onUpdate, showActuals=false, suppressVendor=false}:{item:BudgetItem,onEdit:()=>void,onDelete:()=>void,onDuplicate:()=>void,onUpdate:(patch:Partial<BudgetItem>)=>void,showActuals?:boolean,suppressVendor?:boolean}) {",
+              "function BudgetRow({item, onEdit, onDelete, onDuplicate, onCopy, onUpdate, showActuals=false, suppressVendor=false}:{item:BudgetItem,onEdit:()=>void,onDelete:()=>void,onDuplicate:()=>void,onCopy:()=>void,onUpdate:(patch:Partial<BudgetItem>)=>void,showActuals?:boolean,suppressVendor?:boolean}) {",
+              'row signature'
+          )
+
+          rep(
+              "<button className=\"icon-btn no-print\" aria-label={`Duplicate ${item.name}`} onClick={e => { e.stopPropagation(); onDuplicate() }}><Copy size={15}/></button><button className=\"icon-btn no-print danger\" aria-label={`Delete ${item.name}`} onClick={e => { e.stopPropagation(); onDelete() }}><Trash2 size={15}/></button>",
+              "<button className=\"icon-btn no-print\" aria-label={`Duplicate ${item.name}`} onClick={e => { e.stopPropagation(); onDuplicate() }}><Copy size={15}/></button><button className=\"icon-btn no-print\" aria-label={`Copy ${item.name} to another budget`} title=\"Copy to another budget\" onClick={e => { e.stopPropagation(); onCopy() }}><Link2 size={15}/></button><button className=\"icon-btn no-print danger\" aria-label={`Delete ${item.name}`} onClick={e => { e.stopPropagation(); onDelete() }}><Trash2 size={15}/></button>",
+              'row actions'
+          )
+
+          p.write_text(s)
+          PY
+      - name: Verify only main.tsx changed
+        run: |
+          git diff --check
+          git diff --stat
+      - name: Commit patch
+        run: |
+          git config user.name "tayericks"
+          git config user.email "82841358+tayericks@users.noreply.github.com"
+          git add src/main.tsx
+          git commit -m "Add isolated copy-to-budget line item action"
+          git push origin HEAD:feature/copy-line-items
