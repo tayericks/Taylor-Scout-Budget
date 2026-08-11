@@ -521,9 +521,10 @@ function App() {
   const [activeBudgetId, setActiveBudgetId] = useState(() => requestedBudgetId || budgets.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId)?.id || budgets[0]?.id || '')
   const [openEpisodes, setOpenEpisodes] = useState<string[]>(() => budgets[0] ? [budgetEpisodeGroup(budgets[0].episode)] : [])
   const [openSections, setOpenSections] = useState<string[]>(['location-fees', 'staffing', 'vendors'])
-  const [activeModal, setActiveModal] = useState<'item' | 'city' | 'vendor' | 'newBudget' | 'copyBudget' | 'addSection' | 'printSelection' | 'connections' | null>(null)
+  const [activeModal, setActiveModal] = useState<'item' | 'city' | 'vendor' | 'newBudget' | 'copyBudget' | 'copyItem' | 'addSection' | 'printSelection' | 'connections' | null>(null)
   const [activeSection, setActiveSection] = useState('staffing')
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
+  const [copyingItem, setCopyingItem] = useState<BudgetItem | null>(null)
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null)
   const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null)
   const [saveState, setSaveState] = useState<'saved'|'saving'>('saved')
@@ -692,6 +693,17 @@ function App() {
     updateBudget({items: next})
     if (!openSections.includes(item.sectionId)) setOpenSections(prev => [...prev, item.sectionId])
   }
+  const startCopyItem = (item: BudgetItem) => { setCopyingItem(item); setActiveModal('copyItem') }
+  const copyItemToBudgets = (targetIds:string[]) => {
+    if (!copyingItem || !targetIds.length) return
+    const sourceCustomSection=(budget.customSections||[]).find(s=>s.id===copyingItem.sectionId)
+    setBudgets(prev=>prev.map(dest=>{
+      if(!targetIds.includes(dest.id)) return dest
+      const hasSection=standardSections.some(s=>s.id===copyingItem.sectionId)||(dest.customSections||[]).some(s=>s.id===copyingItem.sectionId)
+      return {...dest,items:[...(dest.items||[]),{...copyingItem,id:crypto.randomUUID()}],customSections:!hasSection&&sourceCustomSection?[...(dest.customSections||[]),{...sourceCustomSection}]:(dest.customSections||[])}
+    }))
+    setCopyingItem(null); setActiveModal(null)
+  }
   const startAddItem = (sectionId: string) => { setEditingItem(null); setActiveSection(sectionId); setActiveModal('item') }
   const startEditItem = (item: BudgetItem) => { setEditingItem(item); setActiveSection(item.sectionId); setActiveModal('item') }
 
@@ -786,7 +798,7 @@ function App() {
                 <div className="section-total"><strong>{money(sectionTotals[section.id] || 0)}</strong>{(commitmentBySection[section.id]||0)>0&&<small>{money(commitmentBySection[section.id])} committed</small>}</div>
               </div>
               {open && <div className="section-body">
-                {sectionItems.length === 0 ? <div className="empty">No items yet.</div> : <BudgetTable sectionId={section.id} items={sectionItems} onEdit={startEditItem} onDelete={deleteItem} onDuplicate={duplicateItem} onUpdate={updateItem} showActuals={showActuals} />}
+                {sectionItems.length === 0 ? <div className="empty">No items yet.</div> : <BudgetTable sectionId={section.id} items={sectionItems} onEdit={startEditItem} onDelete={deleteItem} onDuplicate={duplicateItem} onCopy={startCopyItem} onUpdate={updateItem} showActuals={showActuals} />}
                 <button className="add-row no-print" onClick={() => startAddItem(section.id)}><Plus size={16}/> Add item to {section.name}</button>
               </div>}
             </section>
@@ -800,6 +812,7 @@ function App() {
       </main>
 
       {activeModal === 'item' && <ItemModal sectionId={activeSection} sectionName={sections.find(s=>s.id===activeSection)?.name || 'Budget Item'} initialItem={editingItem || undefined} cities={cities} city={city} vendors={vendors} onClose={() => { setActiveModal(null); setEditingItem(null) }} onSave={item => { saveItem(item); setActiveModal(null); setEditingItem(null) }} />}
+      {activeModal === 'copyItem' && copyingItem && <CopyItemModal item={copyingItem} sourceBudget={budget} budgets={showBudgets.filter(b=>b.id!==budget.id)} onClose={()=>{setCopyingItem(null);setActiveModal(null)}} onCopy={copyItemToBudgets}/>}
       {activeModal === 'city' && <LibraryModal title="City Rate Library" onClose={() => setActiveModal(null)}><CityLibrary cities={cities} setCities={setCities}/></LibraryModal>}
       {activeModal === 'vendor' && <LibraryModal title="Vendor Library" onClose={() => setActiveModal(null)}><VendorLibrary vendors={vendors} setVendors={setVendors}/></LibraryModal>}
       {activeModal === 'connections' && <ConnectionsModal budget={budget} activeShow={activeShow} calendarUrl={calendarUrl} bibleUrl={bibleUrl} onClose={()=>setActiveModal(null)} />}
@@ -864,6 +877,14 @@ function PrintBudgetSheet({budget,show,city}:{budget:BudgetPage,show:ShowProfile
   </section>
 }
 
+function CopyItemModal({item,sourceBudget,budgets,onClose,onCopy}:{item:BudgetItem,sourceBudget:BudgetPage,budgets:BudgetPage[],onClose:()=>void,onCopy:(ids:string[])=>void}) {
+  const [selected,setSelected]=useState<string[]>([])
+  const episodes=orderedBudgetEpisodes(budgets.map(b=>b.episode))
+  const toggle=(id:string)=>setSelected(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id])
+  const toggleEpisode=(episode:string)=>{const ids=budgets.filter(b=>budgetEpisodeGroup(b.episode)===episode).map(b=>b.id);const all=ids.length>0&&ids.every(id=>selected.includes(id));setSelected(prev=>all?prev.filter(id=>!ids.includes(id)):[...new Set([...prev,...ids])])}
+  return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="modal large"><div className="modal-head"><div><span className="eyebrow">COPY LINE ITEM</span><h2>{item.name}</h2></div><button className="icon-btn" onClick={onClose}><X/></button></div><p className="library-help">Copy from <b>{sourceBudget.episode} · {sourceBudget.setName}</b> to one or more budget pages. The original stays unchanged, and every copy remains independently editable.</p>{budgets.length===0?<div className="empty">There are no other budget pages in this show yet.</div>:<><div className="print-picker-episodes">{episodes.map(ep=><button type="button" key={ep} className="secondary" onClick={()=>toggleEpisode(ep)}>Select {ep}</button>)}</div><div className="print-picker-list">{budgets.map(b=><label key={b.id}><input type="checkbox" checked={selected.includes(b.id)} onChange={()=>toggle(b.id)}/><span><strong>{b.setName}</strong><small>{budgetEpisodeGroup(b.episode)} · {b.location||'No location entered'}</small></span><b>{money(b.items.reduce((sum,i)=>sum+calcItem(i),0))}</b></label>)}</div></>}<div className="modal-actions"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={!selected.length} onClick={()=>onCopy(selected)}><Link2 size={16}/> Copy to {selected.length} budget{selected.length===1?'':'s'}</button></div></div></div>
+}
+
 function PrintSelectionModal({episodes,budgets,currentEpisode,onClose,onPrint}:{episodes:string[],budgets:BudgetPage[],currentEpisode:string,onClose:()=>void,onPrint:(ids:string[])=>void}) {
   const initial=budgets.filter(b=>b.episode===currentEpisode).map(b=>b.id)
   const [selected,setSelected]=useState<string[]>(initial)
@@ -924,7 +945,7 @@ function InlineNumber({value,onChange,ariaLabel}:{value?:number,onChange:(v:numb
   const commit=()=>{ const n=Number(draft); onChange(draft.trim()==='' || !Number.isFinite(n) ? 0 : n) }
   return <input className="inline-cell-input number" type="number" step="any" value={draft} onClick={e=>e.stopPropagation()} onFocus={e=>e.currentTarget.select()} onChange={e=>setDraft(e.target.value)} onBlur={commit} onKeyDown={e=>{if(e.key==='Enter'){e.currentTarget.blur()}}} aria-label={ariaLabel}/>
 }
-function BudgetTable({sectionId, items, onEdit, onDelete, onDuplicate, onUpdate, showActuals=false}:{sectionId:string,items:BudgetItem[],onEdit:(item:BudgetItem)=>void,onDelete:(id:string)=>void,onDuplicate:(item:BudgetItem)=>void,onUpdate:(id:string,patch:Partial<BudgetItem>)=>void,showActuals?:boolean}) {
+function BudgetTable({sectionId, items, onEdit, onDelete, onDuplicate, onCopy, onUpdate, showActuals=false}:{sectionId:string,items:BudgetItem[],onEdit:(item:BudgetItem)=>void,onDelete:(id:string)=>void,onDuplicate:(item:BudgetItem)=>void,onCopy:(item:BudgetItem)=>void,onUpdate:(id:string,patch:Partial<BudgetItem>)=>void,showActuals?:boolean}) {
   const locationFee = sectionId === 'location-fees'
   const labor = ['staffing','security','police','fire'].includes(sectionId)
   if (!locationFee && !labor) {
@@ -939,7 +960,7 @@ function BudgetTable({sectionId, items, onEdit, onDelete, onDuplicate, onUpdate,
     })
     const repeated=[...grouped.values()].filter(group=>group.items.length>1)
     const singles=[...grouped.values()].filter(group=>group.items.length===1).flatMap(group=>group.items)
-    const row=(item:BudgetItem,suppressVendor=false)=><BudgetRow key={item.id} item={item} suppressVendor={suppressVendor} onEdit={() => onEdit(item)} onDelete={() => onDelete(item.id)} onDuplicate={() => onDuplicate(item)} onUpdate={patch=>onUpdate(item.id,patch)} showActuals={showActuals} />
+    const row=(item:BudgetItem,suppressVendor=false)=><BudgetRow key={item.id} item={item} suppressVendor={suppressVendor} onEdit={() => onEdit(item)} onDelete={() => onDelete(item.id)} onDuplicate={() => onDuplicate(item)} onCopy={() => onCopy(item)} onUpdate={patch=>onUpdate(item.id,patch)} showActuals={showActuals} />
     return <div className="grouped-budget-items">{[...standalone,...singles].map(item=>row(item))}{repeated.map(group=><section className="budget-vendor-group" key={vendorGroupKey(group.name)}><div className="budget-vendor-head"><strong>{group.name}</strong><span>{group.items.length} items</span><b>{moneyPrecise(group.items.reduce((sum,item)=>sum+calcItem(item),0))}</b></div><div className="budget-vendor-rows">{group.items.map(item=>row(item,true))}</div></section>)}</div>
   }
   return <div className={`entry-table ${locationFee ? 'fee-table' : 'labor-table'}`}>
@@ -959,15 +980,15 @@ function BudgetTable({sectionId, items, onEdit, onDelete, onDuplicate, onUpdate,
         <span><InlineNumber value={item.calcType==='flat'?item.flatAmount:item.kitFee} onChange={v=>onUpdate(item.id,item.calcType==='flat'?{flatAmount:v}:{kitFee:v})} ariaLabel="Equipment or flat fee"/></span>
       </>}
       <span className="table-total">{moneyPrecise(calcItem(item))}</span>{showActuals&&<><span><InlineNumber value={item.actualAmount} onChange={v=>onUpdate(item.id,{actualAmount:v,status:'actual'})} ariaLabel="Actual invoice amount"/></span><span className={`variance-cell ${(calcItem(item)-(item.actualAmount||0))<0?'negative':''}`}>{moneyPrecise(calcItem(item)-(item.actualAmount||0))}</span></>}
-      <span className="table-actions no-print"><button className="icon-btn" onClick={()=>onEdit(item)} title="Open detailed editor"><Pencil size={14}/></button><button className="icon-btn" onClick={()=>onDuplicate(item)} title="Duplicate item"><Copy size={14}/></button><button className="icon-btn danger" onClick={()=>onDelete(item.id)} title="Delete item"><Trash2 size={14}/></button></span>
+      <span className="table-actions no-print"><button className="icon-btn" onClick={()=>onEdit(item)} title="Open detailed editor"><Pencil size={14}/></button><button className="icon-btn" onClick={()=>onDuplicate(item)} title="Duplicate item on this budget"><Copy size={14}/></button><button className="icon-btn" onClick={()=>onCopy(item)} title="Copy item to another budget"><Link2 size={14}/></button><button className="icon-btn danger" onClick={()=>onDelete(item.id)} title="Delete item"><Trash2 size={14}/></button></span>
     </div>)}
   </div>
 }
 
-function BudgetRow({item, onEdit, onDelete, onDuplicate, onUpdate, showActuals=false, suppressVendor=false}:{item:BudgetItem,onEdit:()=>void,onDelete:()=>void,onDuplicate:()=>void,onUpdate:(patch:Partial<BudgetItem>)=>void,showActuals?:boolean,suppressVendor?:boolean}) {
+function BudgetRow({item, onEdit, onDelete, onDuplicate, onCopy, onUpdate, showActuals=false, suppressVendor=false}:{item:BudgetItem,onEdit:()=>void,onDelete:()=>void,onDuplicate:()=>void,onCopy:()=>void,onUpdate:(patch:Partial<BudgetItem>)=>void,showActuals?:boolean,suppressVendor?:boolean}) {
   return <div className="budget-row editable-row" role="button" tabIndex={0} onClick={onEdit} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onEdit() }}>
     <div><strong>{item.name}</strong>{item.poNumber && <span className="po-badge">PO {item.poNumber}</span>}<small>{item.vendor && !suppressVendor ? `${item.vendor} · ` : ''}{formulaText(item)}</small><span className="edit-hint no-print">Click to edit</span></div>
-    <div className="row-total"><span>{moneyPrecise(calcItem(item))}</span>{showActuals&&<span className="row-actuals"><label>Actual <InlineNumber value={item.actualAmount} onChange={v=>onUpdate({actualAmount:v,status:'actual'})} ariaLabel={`Actual for ${item.name}`}/></label><small className={(calcItem(item)-(item.actualAmount||0))<0?'negative':''}>Variance {moneyPrecise(calcItem(item)-(item.actualAmount||0))}</small></span>}<button className="icon-btn no-print" aria-label={`Edit ${item.name}`} onClick={e => { e.stopPropagation(); onEdit() }}><Pencil size={15}/></button><button className="icon-btn no-print" aria-label={`Duplicate ${item.name}`} onClick={e => { e.stopPropagation(); onDuplicate() }}><Copy size={15}/></button><button className="icon-btn no-print danger" aria-label={`Delete ${item.name}`} onClick={e => { e.stopPropagation(); onDelete() }}><Trash2 size={15}/></button></div>
+    <div className="row-total"><span>{moneyPrecise(calcItem(item))}</span>{showActuals&&<span className="row-actuals"><label>Actual <InlineNumber value={item.actualAmount} onChange={v=>onUpdate({actualAmount:v,status:'actual'})} ariaLabel={`Actual for ${item.name}`}/></label><small className={(calcItem(item)-(item.actualAmount||0))<0?'negative':''}>Variance {moneyPrecise(calcItem(item)-(item.actualAmount||0))}</small></span>}<button className="icon-btn no-print" aria-label={`Edit ${item.name}`} onClick={e => { e.stopPropagation(); onEdit() }}><Pencil size={15}/></button><button className="icon-btn no-print" aria-label={`Duplicate ${item.name}`} onClick={e => { e.stopPropagation(); onDuplicate() }}><Copy size={15}/></button><button className="icon-btn no-print" aria-label={`Copy ${item.name} to another budget`} title="Copy to another budget" onClick={e => { e.stopPropagation(); onCopy() }}><Link2 size={15}/></button><button className="icon-btn no-print danger" aria-label={`Delete ${item.name}`} onClick={e => { e.stopPropagation(); onDelete() }}><Trash2 size={15}/></button></div>
   </div>
 }
 
