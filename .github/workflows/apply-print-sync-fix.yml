@@ -1,0 +1,38 @@
+name: Apply synchronous print fix
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-print-sync-fix.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch print flow to stay in user gesture
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/main.tsx')
+          s=p.read_text()
+          old_import="import { createRoot } from 'react-dom/client'"
+          new_import="import { createRoot } from 'react-dom/client'\nimport { flushSync } from 'react-dom'"
+          if old_import not in s:
+              raise SystemExit('react-dom import target not found')
+          if "import { flushSync } from 'react-dom'" not in s:
+              s=s.replace(old_import,new_import,1)
+          old="const printBudget = () => { setPrintBudgetIds([budget.id]); void saveNow(); window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print())) }\n  const printSelectedBudgets = (ids:string[]) => { setPrintBudgetIds(ids); void saveNow(); setActiveModal(null); window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print())) }"
+          new="const printBudget = () => { flushSync(() => { setPrintBudgetIds([budget.id]); setPrintMenuOpen(false) }); window.print(); void saveNow() }\n  const printSelectedBudgets = (ids:string[]) => { flushSync(() => { setPrintBudgetIds(ids); setActiveModal(null); setPrintMenuOpen(false) }); window.print(); void saveNow() }"
+          if old not in s:
+              raise SystemExit('current print function target not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit print fix
+        run: |
+          git config user.name "Taylor Scout Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/main.tsx
+          git commit -m "Make Budget print synchronous and reliable"
+          git push
