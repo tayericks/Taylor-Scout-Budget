@@ -16,6 +16,7 @@ const keyFor = (locationId:string) => `budget-location:${locationId}`
 const bibleKey = (locationId:string) => `bible-location:${locationId}`
 const budgetTombstoneKey = (locationId:string) => `budget-tombstone:${locationId}`
 const locationTombstoneKey = (locationId:string) => `location-tombstone:${locationId}`
+const revisionKey = (locationId:string) => `budget-revision:${locationId}:${Date.now()}:${crypto.randomUUID()}`
 const tokenFor = (showId:string,locationId:string) => `${showId}:${locationId}`
 const same = (a:any,b:any) => JSON.stringify(a)===JSON.stringify(b)
 const cleanBudget = (budget:any) => { const {__remoteUpdatedAt,...rest}=budget||{}; return rest }
@@ -118,10 +119,16 @@ export async function saveBudgetDocument(showId:string,payload:any){
     if(current&&same(cleanBudget(remoteBudget),local)){budgetTokens.set(tokenFor(showId,locationId),current.updated_at);known.set(locationId,current.updated_at);budget.__remoteUpdatedAt=current.updated_at;latest=current.updated_at||latest;continue}
     if(current&&knownToken&&current.updated_at!==knownToken){conflicts.push(locationId);continue}
     if(current&&!knownToken){conflicts.push(locationId);continue}
+    if(current){
+      const {error:revisionError}=await supabase.from('tool_documents').insert({show_id:showId,tool_key:revisionKey(locationId),payload:{version:1,locationId,savedAt:new Date().toISOString(),previousUpdatedAt:current.updated_at,budgetSnapshot:current.payload}})
+      if(revisionError)throw revisionError
+    }
     const {data,error}=await supabase.from('tool_documents').upsert({show_id:showId,tool_key:toolKey,payload:{version:2,locationId,budget:local}},{onConflict:'show_id,tool_key'}).select('updated_at').single();if(error)throw error
     budgetTokens.set(tokenFor(showId,locationId),data.updated_at);known.set(locationId,data.updated_at);budget.__remoteUpdatedAt=data.updated_at;latest=data.updated_at||latest
   }
-  for(const[locationId,expected]of [...known]){if(presentLocations.has(locationId))continue;const{data:current,error:loadError}=await supabase.from('tool_documents').select('payload,updated_at').eq('show_id',showId).eq('tool_key',keyFor(locationId)).maybeSingle();if(loadError)throw loadError;if(!current||current.updated_at!==expected){conflicts.push(locationId);continue}const{error:tombError}=await supabase.from('tool_documents').upsert({show_id:showId,tool_key:budgetTombstoneKey(locationId),payload:{version:2,locationId,deletedAt:new Date().toISOString(),budgetSnapshot:current.payload,updatedAt:current.updated_at}},{onConflict:'show_id,tool_key'});if(tombError)throw tombError;const{error:deleteError}=await supabase.from('tool_documents').delete().eq('show_id',showId).eq('tool_key',keyFor(locationId));if(deleteError)throw deleteError;known.delete(locationId);budgetTokens.delete(tokenFor(showId,locationId))}
+  // Safety rule: ordinary Save never deletes another budget just because it is
+  // absent from a transient client payload. Budget deletion must be explicit.
+  // This prevents a partial/stale render from wiping unrelated locations.
   loadedBudgetIds.set(showId,known);loadedBudgetTombstones.set(showId,tombstonesAtLoad)
   if(conflicts.length)console.warn('Skipped stale or lifecycle-blocked budget records',conflicts)
   return {updated_at:latest,conflicts}
