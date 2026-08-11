@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
 import {
   Building2, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, ClipboardList, DollarSign,
   FileText, Flame, MapPin, Plus, Printer, Shield, Sparkles,
@@ -674,8 +675,8 @@ function App() {
   const updateSection = (sectionId:string, patch:{name?:string;account?:string}) => updateBudget({sectionOverrides:{...(budget.sectionOverrides||{}),[sectionId]:{...(budget.sectionOverrides?.[sectionId]||{}),...patch}}})
   const updateItem = (id:string, patch:Partial<BudgetItem>) => updateBudget({items:applyLocationFeeDefaults(items,id,patch)})
   const saveNow = async () => { localStorage.setItem('tb-budgets', JSON.stringify(budgets)); localStorage.setItem('tb-cities', JSON.stringify(cities)); localStorage.setItem('tb-vendors', JSON.stringify(vendors)); if(hubShowId&&supabaseConfigured){try{setSaveState('saving');await saveBudgetDocument(hubShowId,{version:1,budgets:budgets.filter(b=>b.showId===hubShowId),cities,vendors});lastRemoteSaveAtRef.current=Date.now();setSyncState('connected');setSyncMessage('Connected')}catch(e:any){setSyncState('error');setSyncMessage(e?.message||'Sync error')}} setSaveState('saved') }
-  const printBudget = () => { setPrintBudgetIds([budget.id]); void saveNow(); window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print())) }
-  const printSelectedBudgets = (ids:string[]) => { setPrintBudgetIds(ids); void saveNow(); setActiveModal(null); window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print())) }
+  const printBudget = () => { flushSync(() => { setPrintBudgetIds([budget.id]); setPrintMenuOpen(false) }); window.print(); void saveNow() }
+  const printSelectedBudgets = (ids:string[]) => { flushSync(() => { setPrintBudgetIds(ids); setActiveModal(null); setPrintMenuOpen(false) }); window.print(); void saveNow() }
   const saveItem = (item: BudgetItem) => {
     const existing = items.find(i => i.id === item.id)
     const next = existing
