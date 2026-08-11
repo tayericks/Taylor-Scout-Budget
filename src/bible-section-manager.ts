@@ -39,7 +39,7 @@ async function loadRemote(){
 async function persist(){
   saveLocal();if(!configured||!showId||!activeBudget)return;
   try{
-    const doc=await loadBudgetDocument(showId),payload=doc?.payload||doc||{},budgets=[...(payload?.budgets||[])],idx=budgets.findIndex((b:AnyBudget)=>b.id===activeBudget?.id);
+    const doc=await loadBudgetDocument(showId);const payload:any=doc?.payload||doc||{};const budgets=[...(payload?.budgets||[])],idx=budgets.findIndex((b:AnyBudget)=>b.id===activeBudget?.id);
     if(idx<0)return;budgets[idx]={...budgets[idx],hiddenSections:[...hidden]};await saveBudgetDocument(showId,{...payload,budgets});activeBudget=budgets[idx];lastPayload={...payload,budgets}
   }catch(e){console.warn('Could not persist Budget section visibility',e)}
 }
@@ -50,7 +50,7 @@ function addRemoveButtons(){
 }
 async function ensureBibleSections(){
   if(!configured||!showId||!activeBudget)return alert('Connect this Budget to the show before syncing Bible sections.');
-  const doc=await loadBudgetDocument(showId),payload=doc?.payload||doc||{},budgets=[...(payload?.budgets||[])],idx=budgets.findIndex((b:AnyBudget)=>b.id===activeBudget?.id);if(idx<0)return;
+  const doc=await loadBudgetDocument(showId);const payload:any=doc?.payload||doc||{};const budgets=[...(payload?.budgets||[])],idx=budgets.findIndex((b:AnyBudget)=>b.id===activeBudget?.id);if(idx<0)return;
   const b=budgets[idx],custom=[...(b.customSections||[])],existing=new Set(custom.map((x:any)=>x.id));
   bibleSections.filter(x=>x.id!=='security').forEach(section=>{if(!existing.has(section.id))custom.push(section)});
   budgets[idx]={...b,customSections:custom,hiddenSections:[...hidden]};await saveBudgetDocument(showId,{...payload,budgets});localStorage.setItem('tb-budgets',JSON.stringify(budgets));location.reload()
