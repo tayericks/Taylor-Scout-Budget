@@ -134,9 +134,66 @@ export async function saveBudgetDocument(showId:string,payload:any){
   return {updated_at:latest,conflicts}
 }
 
-export async function loadSharedLocations(showId:string){ if(!supabase)return[]; const {data,error}=await supabase.from('production_locations').select('*').eq('show_id',showId).order('created_at'); if(error)throw error; return (data||[]).filter((r:any)=>!r.metadata?.archived_at) }
+export async function deleteBudgetDocument(showId:string,budget:any){
+  if(!supabase)throw new Error('Supabase unavailable')
+  let resolved=budget
+  if(!resolved?.sharedLocationId){const matches=await resolveLegacyBudgetIds(showId,[resolved]);resolved=matches[0]||resolved}
+  const locationId=resolved?.sharedLocationId
+  if(!locationId)throw new Error('This budget is not linked to a location yet. Save it once before deleting it.')
+  const toolKey=keyFor(locationId)
+  const {data:current,error:currentError}=await supabase.from('tool_documents').select('payload,updated_at').eq('show_id',showId).eq('tool_key',toolKey).maybeSingle()
+  if(currentError)throw currentError
+  if(current){
+    const {error:revisionError}=await supabase.from('tool_documents').insert({show_id:showId,tool_key:revisionKey(locationId),payload:{version:1,locationId,savedAt:new Date().toISOString(),previousUpdatedAt:current.updated_at,budgetSnapshot:current.payload,reason:'before budget delete'}})
+    if(revisionError)throw revisionError
+  }
+  const tombstone={version:2,locationId,deletedAt:new Date().toISOString(),reason:'Explicit budget delete',budgetSnapshot:current?.payload||{budget:cleanBudget({...resolved,sharedLocationId:locationId})}}
+  const {error:tombError}=await supabase.from('tool_documents').upsert({show_id:showId,tool_key:budgetTombstoneKey(locationId),payload:tombstone},{onConflict:'show_id,tool_key'})
+  if(tombError)throw tombError
+  const {error:deleteError}=await supabase.from('tool_documents').delete().eq('show_id',showId).eq('tool_key',toolKey)
+  if(deleteError)throw deleteError
+  budgetTokens.delete(tokenFor(showId,locationId))
+  const known=loadedBudgetIds.get(showId)||new Map<string,string>();known.delete(locationId);loadedBudgetIds.set(showId,known)
+  const tombstones=loadedBudgetTombstones.get(showId)||new Set<string>();tombstones.add(locationId);loadedBudgetTombstones.set(showId,tombstones)
+  return {locationId,deleted:true}
+}
+
+export async function loadSharedLocations(showId:string){
+  if(!supabase)return[]
+  const [{data,error},{data:budgetTombstones,error:tombError}] = await Promise.all([
+    supabase.from('production_locations').select('*').eq('show_id',showId).order('created_at'),
+    supabase.from('tool_documents').select('tool_key').eq('show_id',showId).like('tool_key','budget-tombstone:%'),
+  ])
+  if(error)throw error;if(tombError)throw tombError
+  const budgetDeleted=new Set((budgetTombstones||[]).map((x:any)=>x.tool_key.slice('budget-tombstone:'.length)))
+  return (data||[]).filter((r:any)=>!r.metadata?.archived_at&&!budgetDeleted.has(r.id))
+}
 export async function archiveLocation(locationId:string){if(!supabase)throw new Error('Supabase unavailable');const {data:row,error:loadError}=await supabase.from('production_locations').select('metadata,status').eq('id',locationId).single();if(loadError)throw loadError;const {error}=await supabase.from('production_locations').update({status:'Archived',metadata:{...(row.metadata||{}),archived_at:new Date().toISOString(),archived_from_status:row.status||null}}).eq('id',locationId);if(error)throw error}
 export async function permanentlyDeleteLocation(showId:string,locationId:string,reason='Permanent delete'){if(!supabase)throw new Error('Supabase unavailable');const [{data:linked,error:linkedError},{data:locationRecord,error:locationError}]=await Promise.all([supabase.from('tool_documents').select('tool_key,payload,updated_at').eq('show_id',showId).in('tool_key',[keyFor(locationId),bibleKey(locationId)]),supabase.from('production_locations').select('*').eq('show_id',showId).eq('id',locationId).maybeSingle()]);if(linkedError)throw linkedError;if(locationError)throw locationError;const tombstone={version:2,locationId,deletedAt:new Date().toISOString(),reason,locationSnapshot:locationRecord||null,linkedRecords:(linked||[]).map((x:any)=>({toolKey:x.tool_key,payload:x.payload,updatedAt:x.updated_at}))};const {error:tombError}=await supabase.from('tool_documents').upsert({show_id:showId,tool_key:locationTombstoneKey(locationId),payload:tombstone},{onConflict:'show_id,tool_key'});if(tombError)throw tombError;if(linked?.length){const {error}=await supabase.from('tool_documents').delete().eq('show_id',showId).in('tool_key',linked.map((x:any)=>x.tool_key));if(error)throw error}const {error}=await supabase.from('production_locations').delete().eq('show_id',showId).eq('id',locationId);if(error)throw error}
+
+// The current Budget UI removes a budget from React state first. Capture that
+// explicit Delete Budget click and persist the corresponding budget tombstone
+// after the local backup has updated. This keeps ordinary autosave non-destructive
+// while making an intentional delete survive refresh.
+if(typeof window!=='undefined'&&typeof document!=='undefined'){
+  document.addEventListener('click',(event)=>{
+    const target=event.target as Element|null
+    if(!target?.closest?.('.delete-budget-button'))return
+    const showId=getShowId();if(!showId)return
+    let before:any[]=[]
+    try{before=JSON.parse(localStorage.getItem('tb-budgets')||'[]')}catch{return}
+    window.setTimeout(async()=>{
+      let after:any[]=[]
+      try{after=JSON.parse(localStorage.getItem('tb-budgets')||'[]')}catch{return}
+      const afterIds=new Set(after.map((b:any)=>b.id))
+      const removed=before.filter((b:any)=>!afterIds.has(b.id)&&(b.showId===showId||!b.showId))
+      for(const removedBudget of removed){
+        try{await deleteBudgetDocument(showId,removedBudget)}catch(error){console.error('Budget delete did not persist',error)}
+      }
+    },1200)
+  },true)
+}
+
 export function subscribeBudget(showId:string,cb:()=>void){
   if(!supabase||!showId)return()=>{}
   // Budget writes autosave locally first. Rehydrating in response to our own
