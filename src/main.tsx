@@ -519,7 +519,7 @@ function App() {
       items: legacyItems ? JSON.parse(legacyItems) : initialItems,
     }]
   })
-  const [activeBudgetId, setActiveBudgetId] = useState(() => requestedBudgetId || budgets.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId)?.id || budgets[0]?.id || '')
+  const [activeBudgetId, setActiveBudgetId] = useState(() => requestedBudgetId || budgets.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId)?.id || localStorage.getItem(`ts-active-budget:${hubShowId || 'local'}`) || budgets[0]?.id || '')
   const [openEpisodes, setOpenEpisodes] = useState<string[]>(() => budgets[0] ? [budgetEpisodeGroup(budgets[0].episode)] : [])
   const [openSections, setOpenSections] = useState<string[]>(['location-fees', 'staffing', 'vendors'])
   const [activeModal, setActiveModal] = useState<'item' | 'city' | 'vendor' | 'newBudget' | 'copyBudget' | 'copyItem' | 'addSection' | 'printSelection' | 'connections' | null>(null)
@@ -528,7 +528,7 @@ function App() {
   const [copyingItem, setCopyingItem] = useState<BudgetItem | null>(null)
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null)
   const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null)
-  const [saveState, setSaveState] = useState<'saved'|'saving'>('saved')
+  const [saveState, setSaveState] = useState<'saved'|'saving'|'error'>('saved')
   const [syncState, setSyncState] = useState<'local'|'connecting'|'connected'|'error'>('connecting')
   const [syncMessage, setSyncMessage] = useState('Connecting…')
   const [remoteReady, setRemoteReady] = useState(false)
@@ -621,6 +621,16 @@ function App() {
 
   useEffect(() => localStorage.setItem('tb-shows', JSON.stringify(shows)), [shows])
   useEffect(() => { if (activeShowId) localStorage.setItem('tb-active-show', activeShowId); else localStorage.removeItem('tb-active-show') }, [activeShowId])
+  useEffect(() => {
+    if (!activeBudgetId) return
+    localStorage.setItem(`ts-active-budget:${hubShowId || 'local'}`, activeBudgetId)
+    const active = budgets.find(b => b.id === activeBudgetId)
+    const url = new URL(window.location.href)
+    url.searchParams.set('budgetId', activeBudgetId)
+    if (active?.sharedLocationId) url.searchParams.set('locationId', active.sharedLocationId); else url.searchParams.delete('locationId')
+    if (active?.episode) url.searchParams.set('episode', active.episode)
+    window.history.replaceState({}, '', url.toString())
+  }, [activeBudgetId, hubShowId, budgets])
 
   const activeShow = shows.find(s => s.id === activeShowId)
   const showBudgets = budgets.filter(b => (b.showId || 'legacy-show') === activeShowId)
@@ -674,7 +684,7 @@ function App() {
   }
   const updateSection = (sectionId:string, patch:{name?:string;account?:string}) => updateBudget({sectionOverrides:{...(budget.sectionOverrides||{}),[sectionId]:{...(budget.sectionOverrides?.[sectionId]||{}),...patch}}})
   const updateItem = (id:string, patch:Partial<BudgetItem>) => updateBudget({items:applyLocationFeeDefaults(items,id,patch)})
-  const saveNow = async () => { localStorage.setItem('tb-budgets', JSON.stringify(budgets)); localStorage.setItem('tb-cities', JSON.stringify(cities)); localStorage.setItem('tb-vendors', JSON.stringify(vendors)); if(hubShowId&&supabaseConfigured){try{setSaveState('saving');await saveBudgetDocument(hubShowId,{version:1,budgets:budgets.filter(b=>b.showId===hubShowId),cities,vendors});lastRemoteSaveAtRef.current=Date.now();setSyncState('connected');setSyncMessage('Connected')}catch(e:any){setSyncState('error');setSyncMessage(e?.message||'Sync error')}} setSaveState('saved') }
+  const saveNow = async () => { localStorage.setItem('tb-budgets', JSON.stringify(budgets)); localStorage.setItem('tb-cities', JSON.stringify(cities)); localStorage.setItem('tb-vendors', JSON.stringify(vendors)); setSaveState('saving'); if(hubShowId&&supabaseConfigured){try{await saveBudgetDocument(hubShowId,{version:1,budgets:budgets.filter(b=>b.showId===hubShowId),cities,vendors});lastRemoteSaveAtRef.current=Date.now();setSyncState('connected');setSyncMessage('Connected');setSaveState('saved')}catch(e:any){setSyncState('error');setSyncMessage(e?.message||'Sync error');setSaveState('error');throw e}} else {setSaveState('saved')} }
   const printBudget = () => { flushSync(() => { setPrintBudgetIds([budget.id]); setPrintMenuOpen(false) }); window.print(); void saveNow() }
   const printSelectedBudgets = (ids:string[]) => { flushSync(() => { setPrintBudgetIds(ids); setActiveModal(null); setPrintMenuOpen(false) }); window.print(); void saveNow() }
   const saveItem = (item: BudgetItem) => {
@@ -754,7 +764,7 @@ function App() {
       <main className="main-content">
         <header className="topbar no-print budget-topbar">
           <div className="budget-title"><span className="eyebrow">{budget.episode} · LOCATIONS DEPARTMENT</span><h1>{budget.setName}</h1><p>{budget.location}</p></div>
-          <div className="top-actions"><button className="secondary" onClick={()=>window.location.href='https://www.taylorscout.com'}><Home size={17}/> Home</button><button className="save-budget-btn" onClick={saveNow} disabled={saveState==='saving'} aria-busy={saveState==='saving'}>Save Budget</button>
+          <div className="top-actions"><button className="secondary" onClick={()=>window.location.href='https://www.taylorscout.com'}><Home size={17}/> Home</button><button className={`save-budget-btn ${saveState==='error'?'save-error':''}`} onClick={()=>void saveNow().catch(()=>{})} disabled={saveState==='saving'} aria-busy={saveState==='saving'}>{saveState==='saving'?'Saving…':saveState==='error'?'Retry Save':'Save Budget'}</button>
             <button className="secondary" onClick={() => setActiveModal('copyBudget')}><Copy size={17}/> Duplicate Budget</button>
             <div className="print-dropdown"><button className="secondary print-trigger" onClick={()=>setPrintMenuOpen(!printMenuOpen)}><Printer size={16}/> Print <ChevronDown size={15}/></button>{printMenuOpen&&<div className="print-menu"><button onClick={()=>{setPrintOrientation('landscape');setPrintMenuOpen(false);printBudget()}}><FileText size={16}/><span><b>Landscape</b><small>Print this budget landscape</small></span></button><button onClick={()=>{setPrintMenuOpen(false);printBudget()}}><Printer size={16}/><span><b>Set</b><small>Print the current set budget</small></span></button><button onClick={()=>{setPrintMenuOpen(false);setActiveModal('printSelection')}}><Copy size={16}/><span><b>Episode / Sets</b><small>Choose multiple set budgets</small></span></button></div>}</div>
             <button className={`secondary actuals-toggle ${finalTracker?'active':''}`} onClick={()=>setFinalTracker(v=>!v)}><ClipboardList size={17}/>{finalTracker?'Exit Final Tracker':'Final Tracker'}</button><button className={`secondary actuals-toggle ${showActuals?'active':''}`} onClick={()=>setShowActuals(v=>!v)}><ClipboardList size={17}/>{showActuals?'Hide Actuals':'Show Actuals'}</button><button className="secondary" onClick={()=>setOpenSections(openSections.length===sections.length?[]:sections.map(s=>s.id))}>{openSections.length===sections.length?<><ChevronsUp size={17}/> Collapse All</>:<><ChevronsDown size={17}/> Expand All</>}</button>
