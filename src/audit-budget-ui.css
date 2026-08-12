@@ -1,0 +1,36 @@
+/* Taylor Scout Budget — locked audit UI, 2026-08-12 */
+:root{--ts-audit-navy:#06243a;--ts-audit-teal:#20b8b7;--ts-audit-border:#dbe4ea;--ts-audit-soft:#f7fafb}
+
+.top-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.top-actions>.secondary,.top-actions>.primary,.top-actions>.save-budget-btn,.top-actions>.danger-button{min-height:44px;white-space:nowrap}
+.manage-sections-button{background:#fff!important;color:#17202a!important;border:1px solid #d7dce2!important;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+.manage-sections-button:hover{background:#f7fafb!important}
+
+.project-card{background:#fff!important;border-color:var(--ts-audit-border)!important;box-shadow:none!important}
+.connected-financials{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:12px!important}
+.metric{min-height:94px;border-radius:14px!important}
+.metric.dark{background:var(--ts-audit-navy)!important}
+.metric.commitment{background:#edf4ff!important;border-color:#cbdcf7!important}
+.metric.remaining{background:#eaf8ef!important;border-color:#cbe9d4!important}
+.metric.accent{background:#f7bb45!important}
+
+.budget-section{border-color:var(--ts-audit-border)!important;border-radius:16px!important;box-shadow:none!important}
+.section-header{padding:16px 18px!important}
+.section-body{padding-left:18px!important;padding-right:18px!important}
+
+/* Reserve a real action column so edit/copy/delete never overlap totals. */
+.entry-table{overflow-x:auto!important;overflow-y:hidden!important}
+.fee-table .entry-table-head,.fee-table .entry-table-row{grid-template-columns:minmax(340px,1fr) 115px 120px 90px 135px 154px!important;min-width:1000px!important}
+.labor-table .entry-table-head,.labor-table .entry-table-row{grid-template-columns:minmax(300px,1fr) 90px 62px 62px 62px 62px 62px 90px 105px 125px 154px!important;min-width:1190px!important}
+.entry-table-head>*,.entry-table-row>*{min-width:0}
+.entry-table-row>span:last-child,.entry-table-head>span:last-child{padding-left:12px!important;padding-right:8px!important;white-space:nowrap!important}
+.entry-table-row button.icon-btn{width:32px;height:32px;display:inline-grid!important;place-items:center;padding:0!important;margin:0 1px!important}
+.entry-table-row .row-total{white-space:nowrap!important}
+
+.add-row{border-style:solid!important;border-color:#a9dedd!important;background:#fff!important;color:#138d8d!important;width:max-content}
+.budget-link.active{border-left:4px solid var(--ts-audit-teal)!important;padding-left:4px!important}
+.budget-link.active small{color:#f6bf46!important}
+
+@media(max-width:1350px){.connected-financials{grid-template-columns:repeat(3,minmax(0,1fr))!important}.top-actions{justify-content:flex-start}}
+@media(max-width:900px){.connected-financials{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:600px){.connected-financials{grid-template-columns:1fr!important}}
