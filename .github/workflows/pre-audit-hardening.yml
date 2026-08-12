@@ -1,0 +1,53 @@
+name: Apply pre-audit Budget hardening
+on:
+  push:
+    paths:
+      - '.github/workflows/pre-audit-hardening.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Budget trust and context
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/main.tsx')
+          s=p.read_text()
+
+          old="const [activeBudgetId, setActiveBudgetId] = useState(() => requestedBudgetId || budgets.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId)?.id || budgets[0]?.id || '')"
+          new="const [activeBudgetId, setActiveBudgetId] = useState(() => requestedBudgetId || budgets.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId)?.id || localStorage.getItem(`ts-active-budget:${hubShowId || 'local'}`) || budgets[0]?.id || '')"
+          if old not in s: raise SystemExit('activeBudgetId target not found')
+          s=s.replace(old,new,1)
+
+          old="const [saveState, setSaveState] = useState<'saved'|'saving'>('saved')"
+          new="const [saveState, setSaveState] = useState<'saved'|'saving'|'error'>('saved')"
+          if old not in s: raise SystemExit('saveState target not found')
+          s=s.replace(old,new,1)
+
+          anchor="useEffect(() => { if (activeShowId) localStorage.setItem('tb-active-show', activeShowId); else localStorage.removeItem('tb-active-show') }, [activeShowId])"
+          insert=anchor+"\n  useEffect(() => {\n    if (!activeBudgetId) return\n    localStorage.setItem(`ts-active-budget:${hubShowId || 'local'}`, activeBudgetId)\n    const active = budgets.find(b => b.id === activeBudgetId)\n    const url = new URL(window.location.href)\n    url.searchParams.set('budgetId', activeBudgetId)\n    if (active?.sharedLocationId) url.searchParams.set('locationId', active.sharedLocationId); else url.searchParams.delete('locationId')\n    if (active?.episode) url.searchParams.set('episode', active.episode)\n    window.history.replaceState({}, '', url.toString())\n  }, [activeBudgetId, hubShowId, budgets])"
+          if anchor not in s: raise SystemExit('context anchor not found')
+          s=s.replace(anchor,insert,1)
+
+          old="const saveNow = async () => { localStorage.setItem('tb-budgets', JSON.stringify(budgets)); localStorage.setItem('tb-cities', JSON.stringify(cities)); localStorage.setItem('tb-vendors', JSON.stringify(vendors)); if(hubShowId&&supabaseConfigured){try{setSaveState('saving');await saveBudgetDocument(hubShowId,{version:1,budgets:budgets.filter(b=>b.showId===hubShowId),cities,vendors});lastRemoteSaveAtRef.current=Date.now();setSyncState('connected');setSyncMessage('Connected')}catch(e:any){setSyncState('error');setSyncMessage(e?.message||'Sync error')}} setSaveState('saved') }"
+          new="const saveNow = async () => { localStorage.setItem('tb-budgets', JSON.stringify(budgets)); localStorage.setItem('tb-cities', JSON.stringify(cities)); localStorage.setItem('tb-vendors', JSON.stringify(vendors)); setSaveState('saving'); if(hubShowId&&supabaseConfigured){try{await saveBudgetDocument(hubShowId,{version:1,budgets:budgets.filter(b=>b.showId===hubShowId),cities,vendors});lastRemoteSaveAtRef.current=Date.now();setSyncState('connected');setSyncMessage('Connected');setSaveState('saved')}catch(e:any){setSyncState('error');setSyncMessage(e?.message||'Sync error');setSaveState('error');throw e}} else {setSaveState('saved')} }"
+          if old not in s: raise SystemExit('saveNow target not found')
+          s=s.replace(old,new,1)
+
+          old='<button className="save-budget-btn" onClick={saveNow} disabled={saveState===\'saving\'} aria-busy={saveState===\'saving\'}>Save Budget</button>'
+          new='<button className={`save-budget-btn ${saveState===\'error\'?\'save-error\':\'\'}`} onClick={()=>void saveNow().catch(()=>{})} disabled={saveState===\'saving\'} aria-busy={saveState===\'saving\'}>{saveState===\'saving\'?\'Saving…\':saveState===\'error\'?\'Retry Save\':\'Save Budget\'}</button>'
+          if old not in s: raise SystemExit('save button target not found')
+          s=s.replace(old,new,1)
+
+          p.write_text(s)
+          PY
+      - name: Commit hardening
+        run: |
+          git config user.name "Taylor Scout Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/main.tsx
+          git commit -m "Pre-audit hardening: persist Budget context and truthful saves"
+          git push
