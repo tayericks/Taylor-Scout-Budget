@@ -1,3 +1,5 @@
+import './platform-brand-lock.css'
+
 const normalize = (value:string) => value.trim().replace(/\s+\d+$/,'').toLowerCase()
 
 function disambiguateBudgetLabels(){
