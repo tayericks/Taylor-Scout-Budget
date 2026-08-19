@@ -1,0 +1,56 @@
+name: Apply permanent Budget item delete fix
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-permanent-item-delete.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stop deleted template items from returning
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/main.tsx')
+          s=p.read_text()
+          old="""function withRequiredTemplate(items: BudgetItem[]) {
+  // Fill the standard security presets with the show's baseline rates while
+  // preserving any rate the user has already entered manually.
+  const normalized = items.map(item => {
+    if (item.sectionId !== 'security' || (item.hourlyRate ?? 0) !== 0) return item
+    if (/^(Prep|Shoot|Strike|Hold) Guards$/i.test(item.name)) return {...item, hourlyRate:33}
+    if (/^(Prep|Shoot|Strike|Hold) Supervisor$/i.test(item.name)) return {...item, hourlyRate:36}
+    return item
+  })
+  const required = templateItems()
+  const keys = new Set(normalized.map(i => `${i.sectionId}|${i.name.toLowerCase()}`))
+  return [...normalized, ...required.filter(i => !keys.has(`${i.sectionId}|${i.name.toLowerCase()}`))]
+}
+"""
+          new="""function withRequiredTemplate(items: BudgetItem[]) {
+  // Existing budgets are user-owned. Normalize baseline rates, but never
+  // recreate a row the user intentionally deleted. Template rows are only
+  // added when a new budget is created via templateItems().
+  return items.map(item => {
+    if (item.sectionId !== 'security' || (item.hourlyRate ?? 0) !== 0) return item
+    if (/^(Prep|Shoot|Strike|Hold) Guards$/i.test(item.name)) return {...item, hourlyRate:33}
+    if (/^(Prep|Shoot|Strike|Hold) Supervisor$/i.test(item.name)) return {...item, hourlyRate:36}
+    return item
+  })
+}
+"""
+          if old not in s:
+              raise SystemExit('withRequiredTemplate target not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "Taylor Scout Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/main.tsx
+          git commit -m "Make Budget line-item deletion permanent"
+          git push
