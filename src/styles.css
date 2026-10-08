@@ -249,3 +249,35 @@ button,input,select,textarea{font-family:var(--ts-font)!important;border-radius:
 
 /* v30.14 draggable budget section cards */
 .section-sort-card{transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}.section-drag-handle{flex:0 0 auto;display:grid;place-items:center;width:22px;height:34px;margin-right:-4px;color:#8a9aa6;font-size:18px;font-weight:900;letter-spacing:-5px;cursor:grab;user-select:none}.section-sort-card:active .section-drag-handle,.section-drag-handle:active{cursor:grabbing}.section-sort-card.dragging{opacity:.48;transform:scale(.995)}.section-sort-card.drag-over{border-color:#169a9a!important;box-shadow:0 0 0 3px rgba(22,154,154,.14)!important;transform:translateY(2px)}.section-sort-card.drag-over .section-header{background:#f1fbfb!important}@media print{.section-sort-card{transform:none!important;box-shadow:none!important}}
+
+
+/* Budget QA print hardening */
+@media print{
+  .print-sheet{break-after:page;page-break-after:always}
+  .print-sheet:last-child{break-after:auto;page-break-after:auto}
+  .print-section{break-inside:auto!important;page-break-inside:auto!important}
+  .print-section-heading{break-after:avoid;page-break-after:avoid}
+  .print-grid-row,.print-row{break-inside:avoid;page-break-inside:avoid}
+  .print-summary{break-inside:avoid;page-break-inside:avoid}
+  html[data-print-orientation="portrait"] .print-sheet{font-size:8px}
+  html[data-print-orientation="portrait"] .print-section-heading{font-size:10px;padding:3px 5px 5px}
+  html[data-print-orientation="portrait"] .print-section-heading strong,
+  html[data-print-orientation="portrait"] .print-section-heading b{font-size:11px}
+  html[data-print-orientation="portrait"] .print-labor-grid .print-grid-head,
+  html[data-print-orientation="portrait"] .print-labor-grid .print-grid-row{
+    grid-template-columns:minmax(155px,1fr) 54px 32px 32px 32px 32px 32px 55px 62px 72px
+  }
+  html[data-print-orientation="portrait"] .print-fee-grid .print-grid-head,
+  html[data-print-orientation="portrait"] .print-fee-grid .print-grid-row{
+    grid-template-columns:minmax(175px,1fr) 60px 70px 40px 76px
+  }
+  html[data-print-orientation="portrait"] .print-grid-head{font-size:6.5px}
+  html[data-print-orientation="portrait"] .print-grid-row{font-size:7.5px}
+  html[data-print-orientation="portrait"] .print-grid-head span,
+  html[data-print-orientation="portrait"] .print-grid-row span,
+  html[data-print-orientation="portrait"] .print-grid-row strong{padding:2px 3px}
+  html[data-print-orientation="portrait"] .print-row{
+    grid-template-columns:minmax(170px,1.25fr) minmax(145px,1fr) 78px;
+    gap:6px;font-size:8px;padding:3px 5px
+  }
+}
