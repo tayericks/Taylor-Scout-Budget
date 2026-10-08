@@ -879,7 +879,16 @@ function ShowSetup({initial,cities,onCancel,onSave}:{initial?:ShowProfile,cities
 function EmptyShow({show,onHome,onNew,onEdit}:{show:ShowProfile,onHome:()=>void,onNew:()=>void,onEdit:()=>void}) { return <div className="empty-show"><div className="empty-show-card"><div className="show-logo large">{show.logo?<img src={show.logo} alt=""/>:<Film size={42}/>}</div><span className="eyebrow">{show.season}</span><h1>{show.name}</h1><p>Your show is ready. Create the first location budget page to begin.</p><div><button className="primary big" onClick={onNew}><Plus size={18}/> Create First Budget</button><button className="secondary" onClick={onEdit}><Settings size={16}/> Show Settings</button></div><button className="text-button" onClick={onHome}>Back to all shows</button></div></div> }
 
 function PrintBudgetSheet({budget,show,city}:{budget:BudgetPage,show:ShowProfile,city?:CityProfile}) {
-  const sections=[...standardSections,...(budget.customSections||[])].map(s=>({...s,...(budget.sectionOverrides?.[s.id]||{})}))
+  const unorderedSections=[...standardSections,...(budget.customSections||[])].map(section => {
+    const override=budget.sectionOverrides?.[section.id] || {}
+    const name=override.name&&legacySectionNames[override.name]?legacySectionNames[override.name]:override.name
+    return {...section,...override,...(name?{name}:{})}
+  })
+  const savedSectionOrder=budget.sectionOrder || []
+  const sections=[...unorderedSections].sort((a,b)=>{
+    const ai=savedSectionOrder.indexOf(a.id),bi=savedSectionOrder.indexOf(b.id)
+    return (ai<0?Number.MAX_SAFE_INTEGER:ai)-(bi<0?Number.MAX_SAFE_INTEGER:bi)
+  })
   const total=budget.items.reduce((sum,i)=>sum+calcItem(i),0)
   return <section className="print-sheet">
     <div className="print-logo-row">{show.logo?<img src={show.logo} alt={`${show.name} logo`}/>:<h2>{show.name}</h2>}<span>LOCATIONS DEPARTMENT</span></div>
