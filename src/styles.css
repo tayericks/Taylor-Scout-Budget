@@ -249,3 +249,136 @@ button,input,select,textarea{font-family:var(--ts-font)!important;border-radius:
 
 /* v30.14 draggable budget section cards */
 .section-sort-card{transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}.section-drag-handle{flex:0 0 auto;display:grid;place-items:center;width:22px;height:34px;margin-right:-4px;color:#8a9aa6;font-size:18px;font-weight:900;letter-spacing:-5px;cursor:grab;user-select:none}.section-sort-card:active .section-drag-handle,.section-drag-handle:active{cursor:grabbing}.section-sort-card.dragging{opacity:.48;transform:scale(.995)}.section-sort-card.drag-over{border-color:#169a9a!important;box-shadow:0 0 0 3px rgba(22,154,154,.14)!important;transform:translateY(2px)}.section-sort-card.drag-over .section-header{background:#f1fbfb!important}@media print{.section-sort-card{transform:none!important;box-shadow:none!important}}
+
+
+/* Budget QA print hardening */
+@media print{
+  .print-sheet{break-after:page;page-break-after:always}
+  .print-sheet:last-child{break-after:auto;page-break-after:auto}
+  .print-section{break-inside:auto!important;page-break-inside:auto!important}
+  .print-section-heading{break-after:avoid;page-break-after:avoid}
+  .print-grid-row,.print-row{break-inside:avoid;page-break-inside:avoid}
+  .print-summary{break-inside:avoid;page-break-inside:avoid}
+  html[data-print-orientation="portrait"] .print-sheet{font-size:8px}
+  html[data-print-orientation="portrait"] .print-section-heading{font-size:10px;padding:3px 5px 5px}
+  html[data-print-orientation="portrait"] .print-section-heading strong,
+  html[data-print-orientation="portrait"] .print-section-heading b{font-size:11px}
+  html[data-print-orientation="portrait"] .print-labor-grid .print-grid-head,
+  html[data-print-orientation="portrait"] .print-labor-grid .print-grid-row{
+    grid-template-columns:minmax(155px,1fr) 54px 32px 32px 32px 32px 32px 55px 62px 72px
+  }
+  html[data-print-orientation="portrait"] .print-fee-grid .print-grid-head,
+  html[data-print-orientation="portrait"] .print-fee-grid .print-grid-row{
+    grid-template-columns:minmax(175px,1fr) 60px 70px 40px 76px
+  }
+  html[data-print-orientation="portrait"] .print-grid-head{font-size:6.5px}
+  html[data-print-orientation="portrait"] .print-grid-row{font-size:7.5px}
+  html[data-print-orientation="portrait"] .print-grid-head span,
+  html[data-print-orientation="portrait"] .print-grid-row span,
+  html[data-print-orientation="portrait"] .print-grid-row strong{padding:2px 3px}
+  html[data-print-orientation="portrait"] .print-row{
+    grid-template-columns:minmax(170px,1.25fr) minmax(145px,1fr) 78px;
+    gap:6px;font-size:8px;padding:3px 5px
+  }
+}
+
+
+/* Budget QA actuals grid alignment */
+.entry-table.fee-table.actuals .entry-table-head,
+.entry-table.fee-table.actuals .entry-table-row{
+  grid-template-columns:minmax(240px,1fr) 88px 105px 68px 112px 105px 105px 76px
+}
+.entry-table.labor-table.actuals .entry-table-head,
+.entry-table.labor-table.actuals .entry-table-row{
+  grid-template-columns:minmax(220px,1fr) 78px 52px 52px 52px 52px 52px 78px 92px 105px 98px 98px 76px
+}
+@media(max-width:760px){
+  .entry-table.fee-table.actuals .entry-table-head,
+  .entry-table.fee-table.actuals .entry-table-row{min-width:980px}
+  .entry-table.labor-table.actuals .entry-table-head,
+  .entry-table.labor-table.actuals .entry-table-row{min-width:1260px}
+}
+
+
+/* Budget QA toolbar sizing — consistent controls that never squeeze labels */
+.budget-topbar .top-actions{
+  width:100%!important;
+  display:flex!important;
+  align-items:center!important;
+  flex-wrap:wrap!important;
+  gap:8px!important;
+  overflow:visible!important;
+}
+.budget-topbar .top-actions > button,
+.budget-topbar .top-actions > .print-dropdown{
+  flex:0 0 auto!important;
+  min-width:max-content!important;
+  height:44px!important;
+  min-height:44px!important;
+  max-height:44px!important;
+  box-sizing:border-box!important;
+}
+.budget-topbar .top-actions > button,
+.budget-topbar .top-actions .print-trigger{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:8px!important;
+  padding:0 14px!important;
+  font-size:13px!important;
+  line-height:1!important;
+  font-weight:750!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+.budget-topbar .top-actions > button{
+  min-width:118px!important;
+}
+.budget-topbar .top-actions .print-dropdown{
+  position:relative!important;
+}
+.budget-topbar .top-actions .print-trigger{
+  width:100%!important;
+  height:44px!important;
+  min-height:44px!important;
+}
+.budget-topbar .top-actions svg{
+  width:16px!important;
+  height:16px!important;
+  flex:0 0 16px!important;
+}
+.budget-topbar .save-budget-btn,
+.budget-topbar .delete-budget-button{
+  padding-left:16px!important;
+  padding-right:16px!important;
+}
+@media(max-width:1100px){
+  .budget-topbar .top-actions{
+    gap:7px!important;
+  }
+  .budget-topbar .top-actions > button,
+  .budget-topbar .top-actions .print-trigger{
+    font-size:12.5px!important;
+    padding-left:12px!important;
+    padding-right:12px!important;
+  }
+}
+@media(max-width:760px){
+  .budget-topbar .top-actions{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    align-items:stretch!important;
+  }
+  .budget-topbar .top-actions > button,
+  .budget-topbar .top-actions > .print-dropdown{
+    width:100%!important;
+    min-width:0!important;
+  }
+  .budget-topbar .top-actions > button,
+  .budget-topbar .top-actions .print-trigger{
+    font-size:12px!important;
+    padding-left:10px!important;
+    padding-right:10px!important;
+  }
+}
