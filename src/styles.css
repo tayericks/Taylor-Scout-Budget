@@ -281,3 +281,20 @@ button,input,select,textarea{font-family:var(--ts-font)!important;border-radius:
     gap:6px;font-size:8px;padding:3px 5px
   }
 }
+
+
+/* Budget QA actuals grid alignment */
+.entry-table.fee-table.actuals .entry-table-head,
+.entry-table.fee-table.actuals .entry-table-row{
+  grid-template-columns:minmax(240px,1fr) 88px 105px 68px 112px 105px 105px 76px
+}
+.entry-table.labor-table.actuals .entry-table-head,
+.entry-table.labor-table.actuals .entry-table-row{
+  grid-template-columns:minmax(220px,1fr) 78px 52px 52px 52px 52px 52px 78px 92px 105px 98px 98px 76px
+}
+@media(max-width:760px){
+  .entry-table.fee-table.actuals .entry-table-head,
+  .entry-table.fee-table.actuals .entry-table-row{min-width:980px}
+  .entry-table.labor-table.actuals .entry-table-head,
+  .entry-table.labor-table.actuals .entry-table-row{min-width:1260px}
+}
