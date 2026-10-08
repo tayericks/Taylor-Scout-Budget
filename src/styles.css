@@ -298,3 +298,87 @@ button,input,select,textarea{font-family:var(--ts-font)!important;border-radius:
   .entry-table.labor-table.actuals .entry-table-head,
   .entry-table.labor-table.actuals .entry-table-row{min-width:1260px}
 }
+
+
+/* Budget QA toolbar sizing — consistent controls that never squeeze labels */
+.budget-topbar .top-actions{
+  width:100%!important;
+  display:flex!important;
+  align-items:center!important;
+  flex-wrap:wrap!important;
+  gap:8px!important;
+  overflow:visible!important;
+}
+.budget-topbar .top-actions > button,
+.budget-topbar .top-actions > .print-dropdown{
+  flex:0 0 auto!important;
+  min-width:max-content!important;
+  height:44px!important;
+  min-height:44px!important;
+  max-height:44px!important;
+  box-sizing:border-box!important;
+}
+.budget-topbar .top-actions > button,
+.budget-topbar .top-actions .print-trigger{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:8px!important;
+  padding:0 14px!important;
+  font-size:13px!important;
+  line-height:1!important;
+  font-weight:750!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+.budget-topbar .top-actions > button{
+  min-width:118px!important;
+}
+.budget-topbar .top-actions .print-dropdown{
+  position:relative!important;
+}
+.budget-topbar .top-actions .print-trigger{
+  width:100%!important;
+  height:44px!important;
+  min-height:44px!important;
+}
+.budget-topbar .top-actions svg{
+  width:16px!important;
+  height:16px!important;
+  flex:0 0 16px!important;
+}
+.budget-topbar .save-budget-btn,
+.budget-topbar .delete-budget-button{
+  padding-left:16px!important;
+  padding-right:16px!important;
+}
+@media(max-width:1100px){
+  .budget-topbar .top-actions{
+    gap:7px!important;
+  }
+  .budget-topbar .top-actions > button,
+  .budget-topbar .top-actions .print-trigger{
+    font-size:12.5px!important;
+    padding-left:12px!important;
+    padding-right:12px!important;
+  }
+}
+@media(max-width:760px){
+  .budget-topbar .top-actions{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    align-items:stretch!important;
+  }
+  .budget-topbar .top-actions > button,
+  .budget-topbar .top-actions > .print-dropdown{
+    width:100%!important;
+    min-width:0!important;
+  }
+  .budget-topbar .top-actions > button,
+  .budget-topbar .top-actions .print-trigger{
+    font-size:12px!important;
+    padding-left:10px!important;
+    padding-right:10px!important;
+  }
+}
