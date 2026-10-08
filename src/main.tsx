@@ -614,6 +614,7 @@ function App() {
   useEffect(() => localStorage.setItem('tb-vendors', JSON.stringify(vendors)), [vendors])
   useEffect(() => {
     localStorage.setItem('tb-print-orientation', printOrientation)
+    document.documentElement.dataset.printOrientation = printOrientation
     let style = document.getElementById('tb-print-page-style') as HTMLStyleElement | null
     if (!style) { style = document.createElement('style'); style.id = 'tb-print-page-style'; document.head.appendChild(style) }
     style.textContent = `@media print { @page { size: ${printOrientation}; margin: .35in; } }`
@@ -897,10 +898,10 @@ function CopyItemModal({item,sourceBudget,budgets,onClose,onCopy}:{item:BudgetIt
 }
 
 function PrintSelectionModal({episodes,budgets,currentEpisode,onClose,onPrint}:{episodes:string[],budgets:BudgetPage[],currentEpisode:string,onClose:()=>void,onPrint:(ids:string[])=>void}) {
-  const initial=budgets.filter(b=>b.episode===currentEpisode).map(b=>b.id)
+  const initial=budgets.filter(b=>budgetEpisodeGroup(b.episode)===budgetEpisodeGroup(currentEpisode)).map(b=>b.id)
   const [selected,setSelected]=useState<string[]>(initial)
   const toggle=(id:string)=>setSelected(selected.includes(id)?selected.filter(x=>x!==id):[...selected,id])
-  const selectEpisode=(ep:string)=>setSelected(budgets.filter(b=>b.episode===ep).map(b=>b.id))
+  const selectEpisode=(ep:string)=>setSelected(budgets.filter(b=>budgetEpisodeGroup(b.episode)===budgetEpisodeGroup(ep)).map(b=>b.id))
   return <div className="modal-backdrop"><div className="modal large"><div className="modal-head"><div><span className="eyebrow">PRINT MULTIPLE BUDGETS</span><h2>Choose an episode or individual sets</h2></div><button className="icon-btn" onClick={onClose}><X/></button></div><div className="print-picker-episodes">{episodes.map(ep=><button key={ep} className="secondary" onClick={()=>selectEpisode(ep)}>Select all {ep}</button>)}</div><div className="print-picker-list">{budgets.map(b=><label key={b.id}><input type="checkbox" checked={selected.includes(b.id)} onChange={()=>toggle(b.id)}/><span><strong>{b.setName}</strong><small>{b.episode} · {b.location||'No location entered'}</small></span><b>{money(b.items.reduce((sum,i)=>sum+calcItem(i),0))}</b></label>)}</div><div className="modal-actions"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={!selected.length} onClick={()=>onPrint(selected)}><Printer size={16}/> Print {selected.length} set{selected.length===1?'':'s'}</button></div></div></div>
 }
 
