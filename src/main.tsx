@@ -7,7 +7,7 @@ import {
   Pencil, Trash2, Truck, Users, Warehouse, Wrench, X, Copy, Film, FolderOpen, Image, Settings, ArrowLeft, Play, Home, Link2, Upload, Download, BookOpen, CalendarDays
 } from 'lucide-react'
 import './styles.css'
-import { configured as supabaseConfigured, getSession, getShowId, getShowName, loadBibleDocument, loadBudgetDocument, loadSharedLocations, saveBudgetDocument, subscribeBudget } from './supabase'
+import { configured as supabaseConfigured, getSession, getShowId, getShowName, loadBibleDocument, loadBudgetDocument, loadCalendarDocument, loadSharedLocations, saveBudgetDocument, subscribeBudget } from './supabase'
 
 function TaylorScoutLogo({compact=false}:{compact?:boolean}) { return <span className={`ts-logo ${compact?'compact':''}`} aria-label="Taylor Scout"><svg viewBox="0 0 74 92" role="img" aria-hidden="true"><path className="pin-outline" d="M37 3C18 3 5 17 5 36c0 22 17 40 32 53 15-13 32-31 32-53C69 17 56 3 37 3Z"/><path className="mountain" d="M16 39l15-13 8 7 10-10 12 14-12-8-10 10-8-7-15 7Z"/><path className="road" d="M19 69c12-14 24-18 31-27-3 14-12 22-20 31l7 8-9 2-9-14Z"/><path className="star" d="M21 17l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z"/></svg><span className="ts-wordmark"><b>TAYLOR SCOUT</b><small>PRODUCTION TOOLS</small></span></span> }
 
@@ -269,6 +269,27 @@ const templateItems = (): BudgetItem[] => [
   {id:crypto.randomUUID(),sectionId:'vendors',name:'BG Changing',calcType:'flat',flatAmount:0,status:'estimate'},
 ]
 
+function countScheduleDays(start?:string,end?:string){
+  if(!start)return 0
+  const first=new Date(`${start}T12:00:00`)
+  const last=new Date(`${(end||start)}T12:00:00`)
+  if(Number.isNaN(first.getTime())||Number.isNaN(last.getTime()))return 0
+  return Math.max(1,Math.floor((last.getTime()-first.getTime())/86400000)+1)
+}
+
+function templateItemsForSchedule(schedule:any={}){
+  const counts:Record<string,number>={
+    'prep day':countScheduleDays(schedule.prep_start,schedule.prep_end),
+    'shoot day':countScheduleDays(schedule.shoot_start,schedule.shoot_end),
+    'hold day':countScheduleDays(schedule.hold_start,schedule.hold_end),
+    'strike day':countScheduleDays(schedule.strike_start,schedule.strike_end),
+  }
+  return templateItems().map(item=>{
+    const key=item.name.trim().toLowerCase()
+    return item.sectionId==='location-fees'&&key in counts?{...item,days:counts[key]}:item
+  })
+}
+
 function withRequiredTemplate(items: BudgetItem[]) {
   // Fill the standard security presets with the show's baseline rates while
   // preserving any rate the user has already entered manually.
@@ -492,13 +513,15 @@ function App() {
   const hubShowName = useMemo(() => getShowName(), [])
   const requestedBudgetId = useMemo(() => new URLSearchParams(window.location.search).get('budgetId') || '', [])
   const requestedLocationId = useMemo(() => new URLSearchParams(window.location.search).get('locationId') || '', [])
+  const showStorageKey = useMemo(() => `tb-shows:${hubShowId || 'local'}`, [hubShowId])
+  const budgetStorageKey = useMemo(() => `tb-budgets:${hubShowId || 'local'}`, [hubShowId])
   const [shows, setShows] = useState<ShowProfile[]>(() => {
-    const saved = localStorage.getItem('tb-shows')
+    const saved = localStorage.getItem(`tb-shows:${hubShowId || 'local'}`)
     if (saved) return JSON.parse(saved)
-    return [{id:hubShowId || 'el-dorado-s3',name:hubShowName || 'EL DORADO',productionCompany:'',season:'Season 3',episodes:['Episode 303','Episode 304','Episode 305','Episode 306','Episode 307','Episode 308'],defaultContingency:10000,defaultCityId:'la-city',createdAt:new Date().toISOString()}]
+    return hubShowId ? [{id:hubShowId,name:hubShowName||'Production',productionCompany:'',season:'',episodes:[],defaultContingency:10000,defaultCityId:'la-city',createdAt:new Date().toISOString()}] : []
   })
-  const [activeShowId, setActiveShowId] = useState(() => hubShowId || localStorage.getItem('tb-active-show') || shows[0]?.id || '')
-  const [appView, setAppView] = useState<'home'|'setup'|'budget'>(() => (hubShowId || localStorage.getItem('tb-active-show') || shows.length === 1) ? 'budget' : 'home')
+  const [activeShowId, setActiveShowId] = useState(() => hubShowId || localStorage.getItem(`tb-active-show:${hubShowId || 'local'}`) || shows[0]?.id || '')
+  const [appView, setAppView] = useState<'home'|'setup'|'budget'>(() => hubShowId ? 'budget' : (shows.length === 1 ? 'budget' : 'home'))
   const [editingShow, setEditingShow] = useState<ShowProfile | null>(null)
   const [cities, setCities] = useState<CityProfile[]>(() => {
     const saved = localStorage.getItem('tb-cities') || localStorage.getItem('lbs-cities')
@@ -509,15 +532,8 @@ function App() {
     return saved ? withRequiredVendors(JSON.parse(saved)) : defaultVendors
   })
   const [budgets, setBudgets] = useState<BudgetPage[]>(() => {
-    const saved = localStorage.getItem('tb-budgets')
-    if (saved) return JSON.parse(saved).map((b:BudgetPage) => ({...b, showId:b.showId || 'legacy-show', items:b.items || [], customSections:b.customSections || [], sectionOverrides:b.sectionOverrides || {}}))
-    const legacyItems = localStorage.getItem('lbs-items')
-    return [{
-      id: crypto.randomUUID(), showId: hubShowId || 'el-dorado-s3', episode: 'Episode 303', production: 'EL DORADO',
-      setName: 'Ext. Salt Lake City - Outskirts / Ext. Pine Tree Forest', setNumber: '4.14, 4.15, 4.16', location: 'Darling Ranch',
-      version: 'Budget V1', cityId: 'la-city', contingency: 10000, keyAssistantLocationManager:'Taylor Erickson', address:'1773 Darling Ave, Frazier Park, CA 93225', prepStart:'2026-07-30', prepEnd:'2026-07-31', shootStart:'2026-08-03', shootEnd:'2026-08-03', holdStart:'2026-08-01', holdEnd:'2026-08-02', strikeStart:'2026-08-04', strikeEnd:'2026-08-04', sharedLocationId:'darling-ranch',
-      items: legacyItems ? JSON.parse(legacyItems) : initialItems,
-    }]
+    const saved = localStorage.getItem(`tb-budgets:${hubShowId || 'local'}`)
+    return saved ? JSON.parse(saved).map((b:BudgetPage) => ({...b,showId:b.showId||hubShowId||'local',items:b.items||[],customSections:b.customSections||[],sectionOverrides:b.sectionOverrides||{}})) : []
   })
   const [activeBudgetId, setActiveBudgetId] = useState(() => requestedBudgetId || budgets.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId)?.id || localStorage.getItem(`ts-active-budget:${hubShowId || 'local'}`) || budgets[0]?.id || '')
   const [openEpisodes, setOpenEpisodes] = useState<string[]>(() => budgets[0] ? [budgetEpisodeGroup(budgets[0].episode)] : [])
@@ -544,7 +560,7 @@ function App() {
   const remoteHydratingRef = useRef(false)
 
   // Local backup should never interrupt typing or change button state.
-  useEffect(() => { const t=setTimeout(()=>{ localStorage.setItem('tb-budgets', JSON.stringify(budgets)) },600); return ()=>clearTimeout(t) }, [budgets])
+  useEffect(() => { const t=setTimeout(()=>{ localStorage.setItem(budgetStorageKey, JSON.stringify(budgets.filter(b=>!hubShowId||b.showId===hubShowId))) },600); return ()=>clearTimeout(t) }, [budgets,budgetStorageKey,hubShowId])
 
   useEffect(() => {
     if (appView === 'home' && shows.length === 1) {
@@ -566,18 +582,53 @@ function App() {
       try {
         setSyncState('connecting'); setSyncMessage('Connecting…')
         const session=await getSession(); if(!session) throw new Error('Not signed in')
-        const [doc,locations,bibleDoc]=await Promise.all([loadBudgetDocument(hubShowId),loadSharedLocations(hubShowId),loadBibleDocument(hubShowId)])
+        const [doc,locations,bibleDoc,calendarDoc]=await Promise.all([loadBudgetDocument(hubShowId),loadSharedLocations(hubShowId),loadBibleDocument(hubShowId),loadCalendarDocument(hubShowId)])
         if(cancelled)return
-        const sharedShow:ShowProfile={id:hubShowId,name:hubShowName||'EL DORADO',productionCompany:'',season:'',episodes:Array.from(new Set(locations.map((r:any)=>r.episode_name||r.episode_id).filter(Boolean))),defaultContingency:10000,defaultCityId:'la-city',createdAt:new Date().toISOString()}
+        const sharedShow:ShowProfile={id:hubShowId,name:hubShowName||'Production',productionCompany:'',season:'',episodes:Array.from(new Set(locations.map((r:any)=>r.episode_name||r.episode_id).filter(Boolean))),defaultContingency:10000,defaultCityId:'la-city',createdAt:new Date().toISOString()}
         setShows(prev=>prev.some(s=>s.id===hubShowId)?prev.map(s=>s.id===hubShowId?{...s,...sharedShow,episodes:sharedShow.episodes.length?sharedShow.episodes:s.episodes}:s):[...prev,sharedShow])
         setActiveShowId(hubShowId); setAppView('budget')
         let remoteBudgets:BudgetPage[] = Array.isArray(doc?.payload?.budgets) ? doc.payload.budgets : []
-        const calendarDrafts:BudgetPage[] = locations.filter((r:any)=>r.source==='calendar').map((r:any)=>({
-          id:`calendar-${r.id}`,showId:hubShowId,episode:r.episode_name||r.episode_id||'Episode',production:hubShowName||'EL DORADO',setName:r.set_name||'New Set',setNumber:r.metadata?.scenes||'',scenes:r.metadata?.scenes||'',location:r.location_name||'',version:'Budget V1',cityId:'la-city',contingency:10000,keyAssistantLocationManager:Array.isArray(r.metadata?.key_ids)?r.metadata.key_ids.join(', '):'',address:r.address||'',contact:r.contact_name||'',phone:r.contact_phone||'',sharedLocationId:r.id,calendarAssignmentIds:[r.metadata?.calendar_event_id].filter(Boolean),prepStart:r.metadata?.schedule?.prep_start||'',prepEnd:r.metadata?.schedule?.prep_end||'',shootStart:r.metadata?.schedule?.shoot_start||'',shootEnd:r.metadata?.schedule?.shoot_end||'',holdStart:r.metadata?.schedule?.hold_start||'',holdEnd:r.metadata?.schedule?.hold_end||'',strikeStart:r.metadata?.schedule?.strike_start||'',strikeEnd:r.metadata?.schedule?.strike_end||'',items:templateItems(),customSections:[],sectionOverrides:{}
-        }))
+        const calendarEvents:any[] = Array.isArray(calendarDoc?.payload?.events) ? calendarDoc.payload.events : []
+        const calendarKeys=new Map((Array.isArray(calendarDoc?.payload?.keys)?calendarDoc.payload.keys:[]).map((key:any)=>[String(key.id),key]))
+        const norm=(v:any)=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ')
+        const eventsForLocation=(location:any)=>calendarEvents.filter((event:any)=>{
+          if(event?.locationId && String(event.locationId)===String(location.id))return true
+          if(!event?.locationId && norm(event?.location)===norm(location.location_name)){
+            return !event?.set || !location.set_name || norm(event.set).includes(norm(location.set_name)) || norm(location.set_name).includes(norm(event.set))
+          }
+          return false
+        })
+        const budgetLocations=locations.filter((location:any)=>{
+          const linkedEvents=eventsForLocation(location)
+          return linkedEvents.length>0 || location.is_final===true || ['Selected','Scheduled','Budget Draft','Bible Draft'].includes(location.status)
+        })
+        const calendarDrafts:BudgetPage[] = budgetLocations.map((location:any)=>{
+          const linkedEvents=eventsForLocation(location)
+          const first=linkedEvents[0]||{}
+          const range=(prefix:string)=>{
+            const starts=linkedEvents.map((event:any)=>event[`${prefix}Start`]).filter(Boolean).sort()
+            const ends=linkedEvents.map((event:any)=>event[`${prefix}End`]||event[`${prefix}Start`]).filter(Boolean).sort()
+            return {start:starts[0]||'',end:ends.at(-1)||starts.at(-1)||''}
+          }
+          const prep=range('prep'),shoot=range('shoot'),hold=range('hold'),strike=range('strike')
+          const schedule={prep_start:prep.start,prep_end:prep.end,shoot_start:shoot.start,shoot_end:shoot.end,hold_start:hold.start,hold_end:hold.end,strike_start:strike.start,strike_end:strike.end}
+          const sets=[...new Set(linkedEvents.map((event:any)=>event.set).filter(Boolean))]
+          const scenes=[...new Set(linkedEvents.flatMap((event:any)=>String(event.scenes||'').split(',').map((scene:string)=>scene.trim()).filter(Boolean)))]
+          const crew=[...new Set(linkedEvents.flatMap((event:any)=>Array.isArray(event.keyIds)?event.keyIds:[]).map((id:any)=>calendarKeys.get(String(id))?.name).filter(Boolean))]
+          return {
+            id:`bootstrap-${location.id}`,showId:hubShowId,episode:location.episode_name||first.episode||location.episode_id||'Episode',
+            production:hubShowName||'Production',setName:sets.join(' / ')||location.set_name||'New Set',setNumber:scenes.join(', ')||location.metadata?.scenes||'',scenes:scenes.join(', ')||location.metadata?.scenes||'',
+            location:location.location_name||first.location||'',version:'Budget V1',
+            cityId:location.city==='Burbank'?'burbank':'la-city',contingency:10000,keyAssistantLocationManager:crew.join(', '),
+            address:[location.address,location.city,location.state,location.postal_code].filter(Boolean).join(', '),
+            contact:location.contact_name||'',phone:location.contact_phone||'',sharedLocationId:location.id,
+            calendarAssignmentIds:linkedEvents.map((event:any)=>event.id).filter(Boolean),
+            prepStart:prep.start,prepEnd:prep.end,shootStart:shoot.start,shootEnd:shoot.end,holdStart:hold.start,holdEnd:hold.end,strikeStart:strike.start,strikeEnd:strike.end,
+            items:templateItemsForSchedule(schedule),customSections:[],sectionOverrides:{}
+          }
+        })
         if(remoteBudgets.length){
-          const norm=(v:any)=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ');
-          const reconciled=remoteBudgets.map(b=>{const linked=locations.find((r:any)=>b.sharedLocationId&&r.id===b.sharedLocationId)||locations.find((r:any)=>norm(r.episode_name||r.episode_id)===norm(b.episode)&&norm(r.set_name)===norm(b.setName))||locations.find((r:any)=>norm(r.episode_name||r.episode_id)===norm(b.episode)&&norm(r.location_name)===norm(b.location));const sc=linked?.metadata?.schedule||{};return{...b,showId:hubShowId,sharedLocationId:linked?.id||b.sharedLocationId,location:linked?.location_name||b.location,setName:linked?.set_name||b.setName,address:linked?.address||b.address,prepStart:sc.prep_start||b.prepStart||'',prepEnd:sc.prep_end||b.prepEnd||'',shootStart:sc.shoot_start||b.shootStart||'',shootEnd:sc.shoot_end||b.shootEnd||'',holdStart:sc.hold_start||b.holdStart||'',holdEnd:sc.hold_end||b.holdEnd||'',strikeStart:sc.strike_start||b.strikeStart||'',strikeEnd:sc.strike_end||b.strikeEnd||'',items:withRequiredTemplate(b.items||[])}});
+          const reconciled=remoteBudgets.map(b=>{const linked=locations.find((r:any)=>b.sharedLocationId&&r.id===b.sharedLocationId)||locations.find((r:any)=>norm(r.episode_name||r.episode_id)===norm(b.episode)&&norm(r.set_name)===norm(b.setName))||locations.find((r:any)=>norm(r.episode_name||r.episode_id)===norm(b.episode)&&norm(r.location_name)===norm(b.location));const draft=calendarDrafts.find(d=>d.sharedLocationId===(linked?.id||b.sharedLocationId));return{...b,showId:hubShowId,sharedLocationId:linked?.id||b.sharedLocationId,location:linked?.location_name||draft?.location||b.location,setName:draft?.setName||linked?.set_name||b.setName,setNumber:draft?.setNumber||b.setNumber,scenes:draft?.scenes||b.scenes,address:draft?.address||linked?.address||b.address,contact:linked?.contact_name||b.contact,phone:linked?.contact_phone||b.phone,keyAssistantLocationManager:draft?.keyAssistantLocationManager||b.keyAssistantLocationManager,calendarAssignmentIds:draft?.calendarAssignmentIds||b.calendarAssignmentIds,prepStart:draft?.prepStart||b.prepStart||'',prepEnd:draft?.prepEnd||b.prepEnd||'',shootStart:draft?.shootStart||b.shootStart||'',shootEnd:draft?.shootEnd||b.shootEnd||'',holdStart:draft?.holdStart||b.holdStart||'',holdEnd:draft?.holdEnd||b.holdEnd||'',strikeStart:draft?.strikeStart||b.strikeStart||'',strikeEnd:draft?.strikeEnd||b.strikeEnd||'',items:withRequiredTemplate(b.items||[])}});
           // Calendar is the source of truth for which location budgets should exist. Keep existing budgets,
           // then create a clean draft for any new Calendar location that does not have one yet.
           const linkedIds=new Set(reconciled.map(b=>b.sharedLocationId).filter(Boolean));
@@ -586,7 +637,7 @@ function App() {
           setBudgets(merged);
           const requested=merged.find(b=>requestedBudgetId&&b.id===requestedBudgetId)||merged.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId);if(requested){setActiveBudgetId(requested.id);setOpenEpisodes(prev=>[...new Set([...prev,budgetEpisodeGroup(requested.episode)])])}
         }
-        else if(calendarDrafts.length){ setBudgets(prev=>{const other=prev.filter(b=>b.showId!==hubShowId); return [...other,...calendarDrafts]});const requested=calendarDrafts.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId);if(requested)setActiveBudgetId(requested.id) }
+        else { setBudgets(calendarDrafts);const requested=calendarDrafts.find(b=>requestedLocationId&&b.sharedLocationId===requestedLocationId);setActiveBudgetId(requested?.id||calendarDrafts[0]?.id||'');setOpenEpisodes(calendarDrafts[0]?[budgetEpisodeGroup(calendarDrafts[0].episode)]:[]) }
         if(doc?.payload?.cities) setCities(normalizeCities(doc.payload.cities))
         if(doc?.payload?.vendors) setVendors(withRequiredVendors(doc.payload.vendors))
         setBiblePayload(bibleDoc?.payload || null)
@@ -620,8 +671,8 @@ function App() {
     style.textContent = `@media print { @page { size: ${printOrientation}; margin: .35in; } }`
   }, [printOrientation])
 
-  useEffect(() => localStorage.setItem('tb-shows', JSON.stringify(shows)), [shows])
-  useEffect(() => { if (activeShowId) localStorage.setItem('tb-active-show', activeShowId); else localStorage.removeItem('tb-active-show') }, [activeShowId])
+  useEffect(() => localStorage.setItem(showStorageKey, JSON.stringify(shows)), [shows,showStorageKey])
+  useEffect(() => { const key=`tb-active-show:${hubShowId || 'local'}`; if (activeShowId) localStorage.setItem(key, activeShowId); else localStorage.removeItem(key) }, [activeShowId,hubShowId])
   useEffect(() => {
     if (!activeBudgetId) return
     localStorage.setItem(`ts-active-budget:${hubShowId || 'local'}`, activeBudgetId)
@@ -685,7 +736,7 @@ function App() {
   }
   const updateSection = (sectionId:string, patch:{name?:string;account?:string}) => updateBudget({sectionOverrides:{...(budget.sectionOverrides||{}),[sectionId]:{...(budget.sectionOverrides?.[sectionId]||{}),...patch}}})
   const updateItem = (id:string, patch:Partial<BudgetItem>) => updateBudget({items:applyLocationFeeDefaults(items,id,patch)})
-  const saveNow = async () => { localStorage.setItem('tb-budgets', JSON.stringify(budgets)); localStorage.setItem('tb-cities', JSON.stringify(cities)); localStorage.setItem('tb-vendors', JSON.stringify(vendors)); setSaveState('saving'); if(hubShowId&&supabaseConfigured){try{await saveBudgetDocument(hubShowId,{version:1,budgets:budgets.filter(b=>b.showId===hubShowId),cities,vendors});lastRemoteSaveAtRef.current=Date.now();setSyncState('connected');setSyncMessage('Connected');setSaveState('saved')}catch(e:any){setSyncState('error');setSyncMessage(e?.message||'Sync error');setSaveState('error');throw e}} else {setSaveState('saved')} }
+  const saveNow = async () => { localStorage.setItem(budgetStorageKey, JSON.stringify(budgets.filter(b=>!hubShowId||b.showId===hubShowId))); localStorage.setItem('tb-cities', JSON.stringify(cities)); localStorage.setItem('tb-vendors', JSON.stringify(vendors)); setSaveState('saving'); if(hubShowId&&supabaseConfigured){try{await saveBudgetDocument(hubShowId,{version:1,budgets:budgets.filter(b=>b.showId===hubShowId),cities,vendors});lastRemoteSaveAtRef.current=Date.now();setSyncState('connected');setSyncMessage('Connected');setSaveState('saved')}catch(e:any){setSyncState('error');setSyncMessage(e?.message||'Sync error');setSaveState('error');throw e}} else {setSaveState('saved')} }
   const printBudget = () => { flushSync(() => { setPrintBudgetIds([budget.id]); setPrintMenuOpen(false) }); window.print(); void saveNow() }
   const printSelectedBudgets = (ids:string[]) => { flushSync(() => { setPrintBudgetIds(ids); setActiveModal(null); setPrintMenuOpen(false) }); window.print(); void saveNow() }
   const saveItem = (item: BudgetItem) => {
