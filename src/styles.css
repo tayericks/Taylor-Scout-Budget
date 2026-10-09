@@ -382,3 +382,155 @@ button,input,select,textarea{font-family:var(--ts-font)!important;border-radius:
     padding-right:10px!important;
   }
 }
+
+
+/* Episode print cover */
+.episode-cover{display:none}
+@media print{
+  .episode-cover{
+    display:block!important;
+    min-height:7.4in;
+    padding:18px 22px!important;
+    break-after:page!important;
+    page-break-after:always!important;
+  }
+  .episode-cover-brand{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:2px solid #10283b;
+    padding-bottom:10px;
+    margin-bottom:22px;
+  }
+  .episode-cover-brand img{
+    max-width:220px;
+    max-height:62px;
+    object-fit:contain;
+    object-position:left center;
+  }
+  .episode-cover-brand h2{margin:0;font-size:22px}
+  .episode-cover-brand span{
+    font-size:9px;
+    font-weight:900;
+    letter-spacing:.16em;
+    color:#526575;
+  }
+  .episode-cover-title{margin-bottom:18px}
+  .episode-cover-title .eyebrow{
+    font-size:9px;
+    font-weight:900;
+    letter-spacing:.16em;
+    color:#b9692e;
+  }
+  .episode-cover-title h1{
+    margin:5px 0 4px;
+    font-size:26px;
+    color:#10283b;
+  }
+  .episode-cover-title p{margin:0;color:#5f6e78;font-size:11px}
+  .episode-cover-kpis{
+    display:grid;
+    grid-template-columns:1.3fr 1fr 1.35fr .7fr;
+    gap:8px;
+    margin-bottom:18px;
+  }
+  .episode-cover-kpis>div{
+    border:1px solid #cfd8de;
+    border-radius:7px;
+    padding:10px 12px;
+    background:#f6f8f9;
+  }
+  .episode-cover-kpis .accent{
+    background:#f3f7f8;
+    border-color:#9eb8c4;
+  }
+  .episode-cover-kpis span{
+    display:block;
+    font-size:8px;
+    font-weight:900;
+    letter-spacing:.08em;
+    color:#6d7d88;
+  }
+  .episode-cover-kpis strong{
+    display:block;
+    margin-top:4px;
+    font-size:19px;
+    color:#10283b;
+  }
+  .episode-cover-grid{
+    display:grid;
+    grid-template-columns:.82fr 1.55fr;
+    gap:14px;
+    align-items:start;
+  }
+  .episode-cover-panel{
+    border:1px solid #d5dde2;
+    border-radius:8px;
+    overflow:hidden;
+    break-inside:avoid;
+  }
+  .episode-cover-panel h2{
+    margin:0;
+    padding:8px 10px;
+    background:#eaf0f3;
+    font-size:12px;
+    color:#10283b;
+  }
+  .episode-section-list>div{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:6px 9px;
+    border-top:1px solid #e4e9ec;
+    font-size:9px;
+  }
+  .episode-section-list span{
+    display:flex;
+    align-items:baseline;
+    gap:6px;
+  }
+  .episode-section-list small{font-size:7px;color:#83909a}
+  .episode-section-list strong{font-size:9px}
+  .episode-location-list{display:flex;flex-direction:column}
+  .episode-location-row{
+    display:grid;
+    grid-template-columns:1.2fr 1.45fr auto;
+    gap:9px;
+    align-items:center;
+    padding:8px 9px;
+    border-top:1px solid #e4e9ec;
+    break-inside:avoid;
+  }
+  .episode-location-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .episode-location-main strong{font-size:9.5px;color:#10283b}
+  .episode-location-main span{font-size:8px;color:#536774}
+  .episode-location-main small{font-size:7px;color:#7a8993}
+  .episode-location-drivers{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    font-size:7.5px;
+    color:#566873;
+  }
+  .episode-location-drivers span{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .episode-location-drivers b{color:#10283b;white-space:nowrap}
+  .episode-location-total{
+    font-size:10px;
+    color:#10283b;
+    white-space:nowrap;
+  }
+  .episode-cover-note{
+    margin-top:13px;
+    padding-top:8px;
+    border-top:1px solid #cfd8de;
+    font-size:8px;
+    color:#7b8992;
+    text-align:right;
+    font-style:italic;
+  }
+}
