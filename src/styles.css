@@ -534,3 +534,23 @@ button,input,select,textarea{font-family:var(--ts-font)!important;border-radius:
     font-style:italic;
   }
 }
+
+
+/* Keep Print aligned with the rest of the budget toolbar */
+.budget-topbar .top-actions .print-dropdown{
+  width:100%;
+  min-width:0;
+  min-height:70px;
+  display:flex;
+  align-items:stretch;
+}
+.budget-topbar .top-actions .print-trigger{
+  width:100%;
+  min-width:0;
+  height:100%;
+  justify-content:center;
+  text-align:center;
+}
+@media(max-width:760px){
+  .budget-topbar .top-actions .print-dropdown{min-height:54px}
+}
