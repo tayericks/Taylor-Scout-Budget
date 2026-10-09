@@ -5,7 +5,7 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY
 export const configured = Boolean(url && key)
 export const supabase = configured ? createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:createSharedCookieStorage()}}) : null
 export const getShowId = () => { const p=new URLSearchParams(location.search); return p.get('show')||p.get('showId')||'' }
-export const getShowName = () => { const p=new URLSearchParams(location.search); return p.get('showName')||'EL DORADO' }
+export const getShowName = () => { const p=new URLSearchParams(location.search); return p.get('showName')||'Production' }
 export async function getSession(){ if(!supabase)return null; const {data,error}=await supabase.auth.getSession(); if(error)throw error; return data.session }
 
 const budgetTokens = new Map<string,string>()
@@ -67,6 +67,13 @@ async function ensureLocationId(showId:string,budget:any){
   if(error)throw error
   budget.sharedLocationId=data.id
   return data.id
+}
+
+export async function loadCalendarDocument(showId:string){
+  if(!supabase)return null
+  const {data,error}=await supabase.from('tool_documents').select('payload,updated_at').eq('show_id',showId).eq('tool_key','calendar').maybeSingle()
+  if(error)throw error
+  return data
 }
 
 export async function loadBibleDocument(showId:string){
