@@ -121,20 +121,13 @@ type BudgetPage = {
 
 
 
-const BUDGET_EPISODE_ORDER = ['Block 1', '303', '304', '305', '306', '307', '308'] as const
-
 function budgetEpisodeGroup(value?: string) {
-  const raw = String(value || '').trim()
-  const normalized = raw.toUpperCase().replace(/[._-]+/g, ' ')
-  if (/\bBLOCK\s*1\b/.test(normalized) || /\bEP\s*BLOCK\s*1\b/.test(normalized)) return 'Block 1'
-  const match = normalized.match(/\b(303|304|305|306|307|308)\b/)
-  return match ? match[1] : raw
+  return String(value || '').trim()
 }
 
 function orderedBudgetEpisodes(values: string[]) {
-  const normalized = values.map(budgetEpisodeGroup).filter(Boolean)
-  const extras = Array.from(new Set(normalized.filter(v => !BUDGET_EPISODE_ORDER.includes(v as any)))).sort((a,b)=>a.localeCompare(b, undefined, {numeric:true}))
-  return [...BUDGET_EPISODE_ORDER, ...extras]
+  return Array.from(new Set(values.map(budgetEpisodeGroup).filter(Boolean)))
+    .sort((a,b)=>a.localeCompare(b, undefined, {numeric:true}))
 }
 
 type BibleCommitment = {
@@ -610,10 +603,9 @@ function App() {
           return false
         })
         const budgetLocations=locations.filter((location:any)=>{
-          const linkedEvents=eventsForLocation(location)
           const directlyLinked=calendarEvents.some((event:any)=>event?.locationId&&String(event.locationId)===String(location.id))
           if(location.source==='calendar'&&!directlyLinked)return false
-          return linkedEvents.length>0 || location.is_final===true || ['Selected','Scheduled','Budget Draft','Bible Draft'].includes(location.status)
+          return directlyLinked || location.is_final===true
         })
         const calendarDrafts:BudgetPage[] = budgetLocations.map((location:any)=>{
           const linkedEvents=eventsForLocation(location)
@@ -736,7 +728,7 @@ function App() {
   const committedTotal = orderedCommitments.reduce((sum,c)=>sum + Number(c.amount || c.workingTotal || 0),0)
   const remainingBudget = total - committedTotal
   const commitmentBySection = orderedCommitments.reduce((acc:Record<string,number>,c)=>{const key=c.sectionId||'vendors';acc[key]=(acc[key]||0)+Number(c.amount||c.workingTotal||0);return acc},{})
-  const episodes = orderedBudgetEpisodes([...(activeShow?.episodes || []), ...showBudgets.map(b => b.episode)])
+  const episodes = orderedBudgetEpisodes(activeShow?.episodes || [])
 
   const updateBudget = (patch: Partial<BudgetPage>) => setBudgets(prev => prev.map(b => b.id === budget.id ? {...b, ...patch} : b))
   const moveSection = (targetId:string) => {
