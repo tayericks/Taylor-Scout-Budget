@@ -881,7 +881,7 @@ function App() {
         <button className="add-section-btn no-print" onClick={() => setActiveModal('addSection')}><Plus size={18}/> Add a section</button>
 
         <div className="print-only print-multi">
-          {(printBudgetIds.length ? showBudgets.filter(b=>printBudgetIds.includes(b.id)) : [budget]).map(printBudget => <PrintBudgetSheet key={printBudget.id} budget={printBudget} show={activeShow} city={cities.find(c=>c.id===printBudget.cityId)} />)}
+          <PrintBudgetPackage selected={printBudgetIds.length ? showBudgets.filter(b=>printBudgetIds.includes(b.id)) : [budget]} allBudgets={showBudgets} show={activeShow} cities={cities}/>
         </div>
       </main>
 
@@ -939,6 +939,76 @@ function ShowSetup({initial,cities,onCancel,onSave}:{initial?:ShowProfile,cities
 }
 
 function EmptyShow({show,onHome,onNew,onEdit}:{show:ShowProfile,onHome:()=>void,onNew:()=>void,onEdit:()=>void}) { return <div className="empty-show"><div className="empty-show-card"><div className="show-logo large">{show.logo?<img src={show.logo} alt=""/>:<Film size={42}/>}</div><span className="eyebrow">{show.season}</span><h1>{show.name}</h1><p>Your show is ready. Create the first location budget page to begin.</p><div><button className="primary big" onClick={onNew}><Plus size={18}/> Create First Budget</button><button className="secondary" onClick={onEdit}><Settings size={16}/> Show Settings</button></div><button className="text-button" onClick={onHome}>Back to all shows</button></div></div> }
+
+function budgetSectionsForPrint(budget:BudgetPage){
+  const unordered=[...standardSections,...(budget.customSections||[])].map(section=>{
+    const override=budget.sectionOverrides?.[section.id]||{}
+    const name=override.name&&legacySectionNames[override.name]?legacySectionNames[override.name]:override.name
+    return {...section,...override,...(name?{name}:{})}
+  })
+  const order=budget.sectionOrder||[]
+  return [...unordered].sort((a,b)=>{
+    const ai=order.indexOf(a.id),bi=order.indexOf(b.id)
+    return (ai<0?Number.MAX_SAFE_INTEGER:ai)-(bi<0?Number.MAX_SAFE_INTEGER:bi)
+  })
+}
+
+function PrintEpisodeCover({budgets,show}:{budgets:BudgetPage[],show:ShowProfile}){
+  if(!budgets.length)return null
+  const episode=budgetEpisodeGroup(budgets[0].episode)
+  const episodeTotal=budgets.reduce((sum,b)=>sum+b.items.reduce((s,i)=>s+calcItem(i),0),0)
+  const contingency=budgets.reduce((sum,b)=>sum+(b.contingency||0),0)
+  const sectionMap=new Map<string,{name:string,account:string,total:number}>()
+  for(const budget of budgets){
+    for(const section of budgetSectionsForPrint(budget)){
+      const subtotal=budget.items.filter(i=>i.sectionId===section.id).reduce((sum,i)=>sum+calcItem(i),0)
+      if(subtotal<=0)continue
+      const current=sectionMap.get(section.id)||{name:section.name,account:section.account,total:0}
+      current.total+=subtotal
+      sectionMap.set(section.id,current)
+    }
+  }
+  const sectionTotals=[...sectionMap.values()].sort((a,b)=>b.total-a.total)
+  const fmtDate=(value?:string)=>value?new Date(`${value}T12:00:00`).toLocaleDateString(undefined,{month:'short',day:'numeric'}):'—'
+  return <section className="print-sheet episode-cover">
+    <div className="episode-cover-brand">{show.logo?<img src={show.logo} alt={show.name}/>:<h2>{show.name}</h2>}<span>LOCATIONS DEPARTMENT</span></div>
+    <div className="episode-cover-title"><span className="eyebrow">EPISODE LOCATIONS BUDGET</span><h1>{show.name} · {episode}</h1><p>{budgets.length} practical location{budgets.length===1?'':'s'} · Working estimate</p></div>
+    <div className="episode-cover-kpis">
+      <div><span>EPISODE ESTIMATE</span><strong>{money(episodeTotal)}</strong></div>
+      <div><span>CONTINGENCY</span><strong>{money(contingency)}</strong></div>
+      <div className="accent"><span>WITH CONTINGENCY</span><strong>{money(episodeTotal+contingency)}</strong></div>
+      <div><span>LOCATIONS</span><strong>{budgets.length}</strong></div>
+    </div>
+    <div className="episode-cover-grid">
+      <div className="episode-cover-panel">
+        <h2>Budget by section</h2>
+        <div className="episode-section-list">{sectionTotals.map(section=><div key={section.name}><span><b>{section.name}</b><small>{section.account}</small></span><strong>{money(section.total)}</strong></div>)}</div>
+      </div>
+      <div className="episode-cover-panel locations">
+        <h2>Location highlights</h2>
+        <div className="episode-location-list">{budgets.map(budget=>{
+          const total=budget.items.reduce((sum,i)=>sum+calcItem(i),0)
+          const top=budgetSectionsForPrint(budget)
+            .map(section=>({name:section.name,total:budget.items.filter(i=>i.sectionId===section.id).reduce((sum,i)=>sum+calcItem(i),0)}))
+            .filter(x=>x.total>0).sort((a,b)=>b.total-a.total).slice(0,3)
+          return <div className="episode-location-row" key={budget.id}>
+            <div className="episode-location-main"><strong>{budget.setName}</strong><span>{budget.location}</span><small>Shoot {fmtDate(budget.shootStart)}{budget.shootEnd&&budget.shootEnd!==budget.shootStart?`–${fmtDate(budget.shootEnd)}`:''}</small></div>
+            <div className="episode-location-drivers">{top.map(item=><span key={item.name}>{item.name} <b>{money(item.total)}</b></span>)}</div>
+            <strong className="episode-location-total">{money(total)}</strong>
+          </div>
+        })}</div>
+      </div>
+    </div>
+    <div className="episode-cover-note">Individual location budgets follow.</div>
+  </section>
+}
+
+function PrintBudgetPackage({selected,allBudgets,show,cities}:{selected:BudgetPage[],allBudgets:BudgetPage[],show:ShowProfile,cities:CityProfile[]}){
+  const episodeGroups=[...new Set(selected.map(b=>budgetEpisodeGroup(b.episode)))]
+  const episode=episodeGroups.length===1?episodeGroups[0]:''
+  const fullEpisode=episode&&selected.length>1&&selected.length===allBudgets.filter(b=>budgetEpisodeGroup(b.episode)===episode).length
+  return <>{fullEpisode&&<PrintEpisodeCover budgets={selected} show={show}/>} {selected.map(printBudget=><PrintBudgetSheet key={printBudget.id} budget={printBudget} show={show} city={cities.find(c=>c.id===printBudget.cityId)}/>)}</>
+}
 
 function PrintBudgetSheet({budget,show,city}:{budget:BudgetPage,show:ShowProfile,city?:CityProfile}) {
   const unorderedSections=[...standardSections,...(budget.customSections||[])].map(section => {
