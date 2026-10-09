@@ -7,7 +7,7 @@ import {
   Pencil, Trash2, Truck, Users, Warehouse, Wrench, X, Copy, Film, FolderOpen, Image, Settings, ArrowLeft, Play, Home, Link2, Upload, Download, BookOpen, CalendarDays
 } from 'lucide-react'
 import './styles.css'
-import { configured as supabaseConfigured, getSession, getShowId, getShowName, loadBibleDocument, loadBudgetDocument, loadCalendarDocument, loadSharedLocations, saveBudgetDocument, subscribeBudget } from './supabase'
+import { configured as supabaseConfigured, getSession, getShowId, getShowName, loadBibleDocument, loadBudgetDocument, loadCalendarDocument, loadProductionSetup, loadSharedLocations, saveBudgetDocument, subscribeBudget } from './supabase'
 
 function TaylorScoutLogo({compact=false}:{compact?:boolean}) { return <span className={`ts-logo ${compact?'compact':''}`} aria-label="Taylor Scout"><svg viewBox="0 0 74 92" role="img" aria-hidden="true"><path className="pin-outline" d="M37 3C18 3 5 17 5 36c0 22 17 40 32 53 15-13 32-31 32-53C69 17 56 3 37 3Z"/><path className="mountain" d="M16 39l15-13 8 7 10-10 12 14-12-8-10 10-8-7-15 7Z"/><path className="road" d="M19 69c12-14 24-18 31-27-3 14-12 22-20 31l7 8-9 2-9-14Z"/><path className="star" d="M21 17l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z"/></svg><span className="ts-wordmark"><b>TAYLOR SCOUT</b><small>PRODUCTION TOOLS</small></span></span> }
 
@@ -582,9 +582,20 @@ function App() {
       try {
         setSyncState('connecting'); setSyncMessage('Connecting…')
         const session=await getSession(); if(!session) throw new Error('Not signed in')
-        const [doc,locations,bibleDoc,calendarDoc]=await Promise.all([loadBudgetDocument(hubShowId),loadSharedLocations(hubShowId),loadBibleDocument(hubShowId),loadCalendarDocument(hubShowId)])
+        const [doc,locations,bibleDoc,calendarDoc,productionSetup]=await Promise.all([loadBudgetDocument(hubShowId),loadSharedLocations(hubShowId),loadBibleDocument(hubShowId),loadCalendarDocument(hubShowId),loadProductionSetup(hubShowId)])
         if(cancelled)return
-        const sharedShow:ShowProfile={id:hubShowId,name:hubShowName||'Production',productionCompany:'',season:'',episodes:Array.from(new Set(locations.map((r:any)=>r.episode_name||r.episode_id).filter(Boolean))),defaultContingency:10000,defaultCityId:'la-city',createdAt:new Date().toISOString()}
+        const canonicalEpisodes=(productionSetup.units||[]).map((unit:any)=>unit.name||unit.code).filter(Boolean)
+        const sharedShow:ShowProfile={
+          id:hubShowId,
+          name:hubShowName||'Production',
+          productionCompany:productionSetup.settings?.production_company||'',
+          season:productionSetup.settings?.season||'',
+          episodes:canonicalEpisodes,
+          defaultContingency:10000,
+          defaultCityId:'la-city',
+          logo:productionSetup.settings?.logo_url||'',
+          createdAt:new Date().toISOString()
+        }
         setShows(prev=>prev.some(s=>s.id===hubShowId)?prev.map(s=>s.id===hubShowId?{...s,...sharedShow,episodes:sharedShow.episodes.length?sharedShow.episodes:s.episodes}:s):[...prev,sharedShow])
         setActiveShowId(hubShowId); setAppView('budget')
         let remoteBudgets:BudgetPage[] = Array.isArray(doc?.payload?.budgets) ? doc.payload.budgets : []
