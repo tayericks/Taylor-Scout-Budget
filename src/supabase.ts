@@ -189,10 +189,10 @@ if(typeof window!=='undefined'&&typeof document!=='undefined'){
     if(!target?.closest?.('.delete-budget-button'))return
     const showId=getShowId();if(!showId)return
     let before:any[]=[]
-    try{before=JSON.parse(localStorage.getItem('tb-budgets')||'[]')}catch{return}
+    try{before=JSON.parse(localStorage.getItem(`tb-budgets:${showId}`)||'[]')}catch{return}
     window.setTimeout(async()=>{
       let after:any[]=[]
-      try{after=JSON.parse(localStorage.getItem('tb-budgets')||'[]')}catch{return}
+      try{after=JSON.parse(localStorage.getItem(`tb-budgets:${showId}`)||'[]')}catch{return}
       const afterIds=new Set(after.map((b:any)=>b.id))
       const removed=before.filter((b:any)=>!afterIds.has(b.id)&&(b.showId===showId||!b.showId))
       for(const removedBudget of removed){
@@ -214,7 +214,7 @@ export function subscribeBudget(showId:string,cb:()=>void){
     .on('postgres_changes',{event:'*',schema:'public',table:'production_locations',filter:`show_id=eq.${showId}`},refresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'tool_documents',filter:`show_id=eq.${showId}`},(p:any)=>{
       const k=p.new?.tool_key||p.old?.tool_key||''
-      if(k.startsWith('bible-location:')||k.startsWith('location-tombstone:')) refresh()
+      if(k==='calendar'||k.startsWith('bible-location:')||k.startsWith('location-tombstone:')) refresh()
     })
     .subscribe()
   return()=>{if(timer)window.clearTimeout(timer);supabase.removeChannel(ch)}
