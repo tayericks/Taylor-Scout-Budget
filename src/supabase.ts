@@ -69,6 +69,17 @@ async function ensureLocationId(showId:string,budget:any){
   return data.id
 }
 
+export async function loadProductionSetup(showId:string){
+  if(!supabase)return {settings:null,units:[]}
+  const [{data:settings,error:settingsError},{data:units,error:unitsError}] = await Promise.all([
+    supabase.from('production_settings').select('show_id,season,production_company,logo_url,preferences').eq('show_id',showId).maybeSingle(),
+    supabase.from('production_units').select('id,name,code,kind,sort_order,active').eq('show_id',showId).eq('active',true).order('sort_order')
+  ])
+  if(settingsError)throw settingsError
+  if(unitsError)throw unitsError
+  return {settings,units:units||[]}
+}
+
 export async function loadCalendarDocument(showId:string){
   if(!supabase)return null
   const {data,error}=await supabase.from('tool_documents').select('payload,updated_at').eq('show_id',showId).eq('tool_key','calendar').maybeSingle()
