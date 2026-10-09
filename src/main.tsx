@@ -589,7 +589,7 @@ function App() {
         setActiveShowId(hubShowId); setAppView('budget')
         let remoteBudgets:BudgetPage[] = Array.isArray(doc?.payload?.budgets) ? doc.payload.budgets : []
         const calendarEvents:any[] = Array.isArray(calendarDoc?.payload?.events) ? calendarDoc.payload.events : []
-        const calendarKeys=new Map((Array.isArray(calendarDoc?.payload?.keys)?calendarDoc.payload.keys:[]).map((key:any)=>[String(key.id),key]))
+        const calendarKeys=new Map<string,any>((Array.isArray(calendarDoc?.payload?.keys)?calendarDoc.payload.keys:[]).map((key:any)=>[String(key.id),key]))
         const norm=(v:any)=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ')
         const eventsForLocation=(location:any)=>calendarEvents.filter((event:any)=>{
           if(event?.locationId && String(event.locationId)===String(location.id))return true
@@ -610,7 +610,7 @@ function App() {
           const range=(prefix:string)=>{
             const starts=linkedEvents.map((event:any)=>event[`${prefix}Start`]).filter(Boolean).sort()
             const ends=linkedEvents.map((event:any)=>event[`${prefix}End`]||event[`${prefix}Start`]).filter(Boolean).sort()
-            return {start:starts[0]||'',end:ends.at(-1)||starts.at(-1)||''}
+            return {start:starts[0]||'',end:ends[ends.length-1]||starts[starts.length-1]||''}
           }
           const prep=range('prep'),shoot=range('shoot'),hold=range('hold'),strike=range('strike')
           const schedule={prep_start:prep.start,prep_end:prep.end,shoot_start:shoot.start,shoot_end:shoot.end,hold_start:hold.start,hold_end:hold.end,strike_start:strike.start,strike_end:strike.end}
