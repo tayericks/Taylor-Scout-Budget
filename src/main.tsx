@@ -600,6 +600,8 @@ function App() {
         })
         const budgetLocations=locations.filter((location:any)=>{
           const linkedEvents=eventsForLocation(location)
+          const directlyLinked=calendarEvents.some((event:any)=>event?.locationId&&String(event.locationId)===String(location.id))
+          if(location.source==='calendar'&&!directlyLinked)return false
           return linkedEvents.length>0 || location.is_final===true || ['Selected','Scheduled','Budget Draft','Bible Draft'].includes(location.status)
         })
         const calendarDrafts:BudgetPage[] = budgetLocations.map((location:any)=>{
@@ -626,6 +628,12 @@ function App() {
             prepStart:prep.start,prepEnd:prep.end,shootStart:shoot.start,shootEnd:shoot.end,holdStart:hold.start,holdEnd:hold.end,strikeStart:strike.start,strikeEnd:strike.end,
             items:templateItemsForSchedule(schedule),customSections:[],sectionOverrides:{}
           }
+        })
+        const allowedLocationIds=new Set(budgetLocations.map((location:any)=>String(location.id)))
+        remoteBudgets=remoteBudgets.filter(budget=>{
+          if(!budget.sharedLocationId)return true
+          const linked=locations.find((location:any)=>String(location.id)===String(budget.sharedLocationId))
+          return !linked || linked.source!=='calendar' || allowedLocationIds.has(String(budget.sharedLocationId))
         })
         if(remoteBudgets.length){
           const reconciled=remoteBudgets.map(b=>{const linked=locations.find((r:any)=>b.sharedLocationId&&r.id===b.sharedLocationId)||locations.find((r:any)=>norm(r.episode_name||r.episode_id)===norm(b.episode)&&norm(r.set_name)===norm(b.setName))||locations.find((r:any)=>norm(r.episode_name||r.episode_id)===norm(b.episode)&&norm(r.location_name)===norm(b.location));const draft=calendarDrafts.find(d=>d.sharedLocationId===(linked?.id||b.sharedLocationId));return{...b,showId:hubShowId,sharedLocationId:linked?.id||b.sharedLocationId,location:linked?.location_name||draft?.location||b.location,setName:draft?.setName||linked?.set_name||b.setName,setNumber:draft?.setNumber||b.setNumber,scenes:draft?.scenes||b.scenes,address:draft?.address||linked?.address||b.address,contact:linked?.contact_name||b.contact,phone:linked?.contact_phone||b.phone,keyAssistantLocationManager:draft?.keyAssistantLocationManager||b.keyAssistantLocationManager,calendarAssignmentIds:draft?.calendarAssignmentIds||b.calendarAssignmentIds,prepStart:draft?.prepStart||b.prepStart||'',prepEnd:draft?.prepEnd||b.prepEnd||'',shootStart:draft?.shootStart||b.shootStart||'',shootEnd:draft?.shootEnd||b.shootEnd||'',holdStart:draft?.holdStart||b.holdStart||'',holdEnd:draft?.holdEnd||b.holdEnd||'',strikeStart:draft?.strikeStart||b.strikeStart||'',strikeEnd:draft?.strikeEnd||b.strikeEnd||'',items:withRequiredTemplate(b.items||[])}});
