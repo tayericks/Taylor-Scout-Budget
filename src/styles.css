@@ -554,3 +554,70 @@ button,input,select,textarea{font-family:var(--ts-font)!important;border-radius:
 @media(max-width:760px){
   .budget-topbar .top-actions .print-dropdown{min-height:54px}
 }
+
+
+/* Clean standalone print documents: show branding first, no app chrome */
+@media print{
+  @page{margin:.35in .4in .45in}
+  html,body{
+    margin:0!important;
+    padding:0!important;
+    background:#fff!important;
+  }
+  .suite-global-bar,
+  .suite-global-brand,
+  .suite-global-tools,
+  .tool-switcher,
+  .tool-tab,
+  .suite-logo-tile,
+  .sidebar,
+  .topbar,
+  .project-card,
+  .section-list,
+  .no-print{
+    display:none!important;
+  }
+  .app-shell,
+  .main-content,
+  .print-only,
+  .print-multi{
+    margin:0!important;
+    padding:0!important;
+    width:100%!important;
+    max-width:none!important;
+    background:#fff!important;
+  }
+  .print-sheet{
+    padding:0!important;
+    margin:0!important;
+  }
+  .print-logo-row{
+    margin:0 0 7px!important;
+    padding:0 0 7px!important;
+    min-height:0!important;
+    justify-content:flex-start!important;
+    gap:18px;
+  }
+  .print-logo-row img{
+    max-width:200px!important;
+    max-height:54px!important;
+    margin:0!important;
+  }
+  .print-logo-row>span{
+    margin-left:auto;
+  }
+  .episode-cover{
+    padding:0!important;
+    margin:0!important;
+  }
+  .episode-cover-brand{
+    margin:0 0 14px!important;
+    padding:0 0 8px!important;
+    min-height:0!important;
+  }
+  .episode-cover-brand img{
+    max-width:220px!important;
+    max-height:58px!important;
+    margin:0!important;
+  }
+}
